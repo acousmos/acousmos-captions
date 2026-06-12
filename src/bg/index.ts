@@ -25,6 +25,11 @@ chrome.runtime.onMessage.addListener(
           sendResponse({ kind: 'cache/clear', ok: true })
           break
         }
+        case 'options/open': {
+          await chrome.runtime.openOptionsPage()
+          sendResponse({ kind: 'options/open', ok: true })
+          break
+        }
         case 'keys/status': {
           const s = await loadSettings()
           sendResponse({

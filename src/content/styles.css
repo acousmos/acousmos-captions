@@ -1,0 +1,162 @@
+/* Acousmos Captions — injected UI. All classes prefixed acap-. */
+
+.acap-root {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2147483600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.acap-pill {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 20, 25, 0.75);
+  color: #e7f6ff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  border: 1px solid rgba(125, 211, 252, 0.45);
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+
+.acap-pill:hover {
+  background: rgba(15, 20, 25, 0.92);
+  border-color: rgba(125, 211, 252, 0.9);
+}
+
+.acap-pill[data-state="working"] {
+  border-color: rgba(250, 204, 21, 0.8);
+  color: #fef9c3;
+}
+
+.acap-pill[data-state="live"] {
+  border-color: rgba(74, 222, 128, 0.8);
+  color: #dcfce7;
+}
+
+.acap-pill[data-state="error"] {
+  border-color: rgba(248, 113, 113, 0.9);
+  color: #fee2e2;
+}
+
+.acap-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: rgba(15, 20, 25, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.acap-menu-item {
+  all: unset;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #e7e9ea;
+  font-size: 13.5px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.acap-menu-item:hover {
+  background: rgba(125, 211, 252, 0.16);
+}
+
+/* --- caption overlay --- */
+
+.acap-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  transform: translateX(-50%);
+  max-width: 92%;
+  z-index: 2147483599;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --acap-font-base: 18px;
+  --acap-font-scale: 1;
+  --acap-bg-alpha: 0.55;
+}
+
+.acap-line {
+  display: inline-block;
+  text-align: center;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, var(--acap-bg-alpha));
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  width: fit-content;
+  max-width: 100%;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  white-space: pre-wrap;
+}
+
+.acap-line:empty {
+  display: none;
+}
+
+.acap-line-src {
+  font-size: calc(var(--acap-font-base) * var(--acap-font-scale) * 0.82);
+  color: #d3e3ee;
+  font-weight: 500;
+}
+
+.acap-line-tgt {
+  font-size: calc(var(--acap-font-base) * var(--acap-font-scale));
+  font-weight: 600;
+}
+
+/* --- toasts --- */
+
+.acap-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%);
+  z-index: 2147483646;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.acap-toast {
+  background: rgba(15, 20, 25, 0.95);
+  color: #e7e9ea;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  max-width: min(420px, 86vw);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.acap-toast-in {
+  opacity: 1;
+  transform: translateY(0);
+}
