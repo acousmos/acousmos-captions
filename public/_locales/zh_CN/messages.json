@@ -25,6 +25,14 @@
   "toast_cached": { "message": "已从缓存加载。" },
   "toast_translation_partial": { "message": "部分句子翻译失败,已显示原文。" },
 
+  "err_asr_auth": { "message": "语音识别服务拒绝了该 API Key,请到设置页检查。" },
+  "err_asr_failed": { "message": "转写失败,请稍后重试。" },
+  "err_llm_auth": { "message": "翻译服务拒绝了该 API Key,请到设置页检查。" },
+  "err_llm_failed": { "message": "翻译失败,请稍后重试。" },
+  "err_audio_fetch": { "message": "无法下载该视频的音频流。" },
+  "err_no_speech": { "message": "该视频中未检测到语音。" },
+  "err_unknown": { "message": "出了点问题,请重试。" },
+
   "status_queued": { "message": "排队中" },
   "status_fetching_audio": { "message": "抓取音频" },
   "status_transcribing": { "message": "转写中" },

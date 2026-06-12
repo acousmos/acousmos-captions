@@ -25,6 +25,14 @@
   "toast_cached": { "message": "Loaded from cache." },
   "toast_translation_partial": { "message": "Some lines could not be translated; original is shown." },
 
+  "err_asr_auth": { "message": "ASR provider rejected the API key. Check it in Settings." },
+  "err_asr_failed": { "message": "Transcription failed. Try again in a moment." },
+  "err_llm_auth": { "message": "Translation provider rejected the API key. Check it in Settings." },
+  "err_llm_failed": { "message": "Translation failed. Try again in a moment." },
+  "err_audio_fetch": { "message": "Could not download the video's audio stream." },
+  "err_no_speech": { "message": "No speech detected in this video." },
+  "err_unknown": { "message": "Something went wrong. Try again." },
+
   "status_queued": { "message": "Queued" },
   "status_fetching_audio": { "message": "Fetching audio" },
   "status_transcribing": { "message": "Transcribing" },
