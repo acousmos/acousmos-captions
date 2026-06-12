@@ -34,6 +34,8 @@
   },
   "permissions": ["storage", "webRequest"],
   "host_permissions": [
+    "https://x.com/*",
+    "https://twitter.com/*",
     "https://video.twimg.com/*",
     "https://api.deepgram.com/*",
     "https://api.soniox.com/*",
