@@ -11,6 +11,8 @@ const controllers = new Map<HTMLVideoElement, PlayerController>()
 const skipped = new WeakSet<HTMLVideoElement>()
 let settings: Settings | null = null
 
+console.debug(`[acousmos-captions] content script active v${chrome.runtime.getManifest().version}`)
+
 void (async () => {
   settings = await loadSettings()
   if (!settings.display.enabled) {
