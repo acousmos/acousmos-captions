@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#101418"/>
+  <rect x="20" y="40" width="88" height="26" rx="7" fill="none" stroke="#7dd3fc" stroke-width="6"/>
+  <text x="64" y="60" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#7dd3fc" text-anchor="middle">EN</text>
+  <rect x="20" y="76" width="88" height="26" rx="7" fill="#7dd3fc"/>
+  <text x="64" y="96" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#101418" text-anchor="middle">中</text>
+</svg>

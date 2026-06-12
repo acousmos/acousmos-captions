@@ -1,0 +1,24 @@
+{
+  "name": "@acousmos/captions",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bilingual AI captions for X (Twitter) videos — original always visible. BYOK ASR + LLM, open source.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.6.0",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "zip": "node scripts/build.mjs && node scripts/zip.mjs",
+    "check": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.43",
+    "esbuild": "^0.28.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}
