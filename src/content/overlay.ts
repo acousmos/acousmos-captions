@@ -9,8 +9,9 @@ import type { Cue } from '../shared/types'
  * source / target) and placement (over the video, or docked below it).
  */
 export class CaptionOverlay {
-  /** Shared offscreen canvas for measuring rendered text width. */
-  private static readonly measureCtx = document.createElement('canvas').getContext('2d')
+  /** Shared hidden node for measuring REAL line wrapping (respects word breaks,
+   *  unlike a canvas one-line measure). Lazily created, one per document. */
+  private static measureEl: HTMLSpanElement | null = null
 
   private root: HTMLDivElement
   private srcEl: HTMLDivElement
@@ -157,28 +158,69 @@ export class CaptionOverlay {
   /**
    * Size one caption box to hug its text:
    *  - fits on one line within the player → keep one line (box = text width);
-   *  - otherwise wrap into the fewest balanced lines and set the box to the
-   *    balanced line width, so there's no long-then-short orphan and no wide
-   *    empty margins beside centered text.
-   * Width is measured with a canvas in the box's own font (accurate for mixed
-   * CJK/Latin and not clamped by the overlay's max-width like a DOM read).
+   *  - otherwise find the SMALLEST width that still wraps into the fewest lines,
+   *    so the box hugs the text (no wide empty margins) and `text-wrap: balance`
+   *    (in CSS) evens the lines (no long-then-short orphan).
+   * Wrapping is measured on a hidden node at real widths, so it respects actual
+   * word boundaries rather than estimating from a single-line width.
    */
   private fitBox(span: HTMLSpanElement): void {
-    const ctx = CaptionOverlay.measureCtx
-    if (!ctx) return
-    const cs = getComputedStyle(span)
-    ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
-    const padding = 24 // ~ 2x horizontal padding + a little slack
-    const oneLine = ctx.measureText(span.textContent ?? '').width + padding
-    const avail = Math.max(80, this.containerWidth * 0.92)
-    span.style.maxWidth = `${Math.round(avail)}px`
-    if (oneLine <= avail) {
-      span.style.width = 'auto' // fits on one line — hug it
-    } else {
-      const lines = Math.ceil(oneLine / avail)
-      // Balanced line width + a small fudge so a word boundary doesn't add a row.
-      span.style.width = `${Math.min(Math.round(avail), Math.round(oneLine / lines) + 16)}px`
+    const text = span.textContent ?? ''
+    if (!text) return
+    const m = CaptionOverlay.getMeasureEl(span)
+    m.textContent = text
+
+    const padH = 22 // .acap-text horizontal padding (≈ 2 × 11px), added outside the content width
+    const availContent = Math.max(40, this.containerWidth * 0.92 - padH)
+    span.style.maxWidth = `${Math.round(availContent + padH)}px`
+
+    m.style.whiteSpace = 'nowrap'
+    m.style.width = 'auto'
+    const oneLine = m.offsetWidth
+    const lineH = m.offsetHeight
+    m.style.whiteSpace = 'pre-wrap'
+    if (lineH === 0 || oneLine <= availContent) {
+      span.style.width = 'auto' // one line — hug it
+      return
     }
+
+    const targetLines = Math.ceil(oneLine / availContent)
+    let lo = Math.ceil(oneLine / targetLines)
+    let hi = Math.round(availContent)
+    let best = hi
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      m.style.width = `${mid}px`
+      const lines = Math.round(m.offsetHeight / lineH)
+      if (lines <= targetLines) {
+        best = mid
+        hi = mid - 1
+      } else {
+        lo = mid + 1
+      }
+    }
+    span.style.width = `${best}px` // content width; CSS padding + balance do the rest
+  }
+
+  /** Hidden measurer that mirrors `span`'s font so wrapping matches the render. */
+  private static getMeasureEl(span: HTMLSpanElement): HTMLSpanElement {
+    let m = CaptionOverlay.measureEl
+    if (!m) {
+      m = document.createElement('span')
+      m.setAttribute('aria-hidden', 'true')
+      m.style.cssText =
+        'position:absolute;left:-99999px;top:0;visibility:hidden;pointer-events:none;margin:0;border:0;padding:0;white-space:pre-wrap;'
+      document.body.appendChild(m)
+      CaptionOverlay.measureEl = m
+    }
+    const cs = getComputedStyle(span)
+    m.style.fontFamily = cs.fontFamily
+    m.style.fontSize = cs.fontSize
+    m.style.fontWeight = cs.fontWeight
+    m.style.letterSpacing = cs.letterSpacing
+    m.style.lineHeight = cs.lineHeight
+    m.style.wordBreak = cs.wordBreak
+    return m
   }
 
   private observeResize(): void {
