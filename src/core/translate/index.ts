@@ -98,6 +98,15 @@ async function translateChunk(
     parsed.length === batch.length && batch.every((it, k) => parsed[k]!.i === it.i && parsed[k]!.t.length > 0)
   const srcEcho = idsEcho && batch.every((it, k) => normalizeSrc(parsed[k]!.src ?? '') === normalizeSrc(it.t))
   if (srcEcho) {
+    // This proves the model addressed each line in place (it copied each source
+    // back), which neutralises the real failure mode: merging split fragments
+    // forces either fewer items (idsEcho fails) or a mismatched source echo
+    // (srcEcho fails). It does not *prove* the translation text wasn't swapped
+    // while the source was still copied faithfully — but a model echoing source_k
+    // is anchored to line k, so there is no realistic mechanism for that to recur
+    // systematically; the worst residual is an isolated mistranslation, with the
+    // original line (the anchor) always correct. A hard structural guarantee, if
+    // ever required, is one cue per request.
     return new Map(batch.map((it, k) => [it.i, parsed[k]!.t]))
   }
 
@@ -116,7 +125,10 @@ async function translateChunk(
   const left = batch.slice(0, mid)
   const right = batch.slice(mid)
   const leftMap = await translateChunk(left, prevSource, provider, opts)
-  const rightPrev = left.slice(-CONTEXT_LINES).map((x) => x.t)
+  // Right half's continuity context = whatever preceded this chunk plus the left
+  // half's sources, trimmed to the last CONTEXT_LINES (so a short left half
+  // doesn't starve it of context).
+  const rightPrev = [...prevSource, ...left.map((x) => x.t)].slice(-CONTEXT_LINES)
   const rightMap = await translateChunk(right, rightPrev, provider, opts)
   return new Map([...leftMap, ...rightMap])
 }
