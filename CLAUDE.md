@@ -54,6 +54,14 @@ src/
   follows the strict JSON / id-anchoring instructions more reliably at similar
   cost; `4o-mini` drops or renumbers ids more often.
 
+## Language: English only in code and history
+
+This repo is intended to be open-sourced. **All code, comments, identifiers,
+and git commit messages must be in English.** The only place non-English text
+belongs is user-facing locale strings under `public/_locales/<locale>/` (e.g.
+`zh_CN/messages.json`). Do not put Chinese (or any non-English) in source,
+comments, commit messages, READMEs, or this file.
+
 ## Commit convention
 
 Use **Conventional Commits** with a descriptive body. The body matters — it is

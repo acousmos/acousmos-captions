@@ -48,11 +48,13 @@
   color: #fee2e2;
 }
 
+/* position:fixed so a short player's overflow:hidden can't clip it; placed
+   from the pill's viewport rect in JS. Scrolls if taller than the viewport. */
 .acap-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
+  position: fixed;
   min-width: 200px;
+  max-height: 80vh;
+  overflow-y: auto;
   background: rgba(15, 20, 25, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;

@@ -1,4 +1,4 @@
-import type { CaptionResult, Cue, JobProgress } from './types'
+import type { CaptionResult, Cue, JobProgress, Utterance } from './types'
 
 /** One-shot messages (chrome.runtime.sendMessage). */
 export type RuntimeRequest =
@@ -23,6 +23,9 @@ export interface JobRequest {
   force?: boolean
   /** Tweet URL for filename/context, optional. */
   pageUrl?: string
+  /** Source cues from the video's own subtitle track; when present, ASR is
+   *  skipped and these are translated directly. */
+  nativeUtterances?: Utterance[]
 }
 
 export type JobEvent =

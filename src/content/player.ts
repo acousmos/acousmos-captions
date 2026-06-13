@@ -2,8 +2,9 @@ import { mediaIdFromPoster } from '../core/mediaid'
 import { JOB_PORT_PREFIX, type JobEvent, type JobRequest } from '../shared/messages'
 import { loadSettings, saveSettings, type Settings } from '../shared/settings'
 import { t } from '../shared/i18n'
-import type { Cue } from '../shared/types'
+import type { Cue, Utterance } from '../shared/types'
 import { downloadSrt } from './exporter'
+import { getNativeUtterances } from './nativeTrack'
 import { CaptionOverlay } from './overlay'
 import { toast } from './toast'
 
@@ -89,6 +90,19 @@ export class PlayerController {
     this.setPill('pill_capturing', 'working')
     this.closeMenu()
     this.port?.disconnect()
+    void this.beginJob(force)
+  }
+
+  private async beginJob(force: boolean): Promise<void> {
+    // Reuse the video's own subtitle track when it has one — accurate, free,
+    // already timed — and only fall back to ASR otherwise.
+    let nativeUtterances: Utterance[] | undefined
+    try {
+      nativeUtterances = (await getNativeUtterances(this.video, this.settings.asr.sourceLang)) ?? undefined
+    } catch {
+      // ignore — fall back to ASR
+    }
+    if (this.disposed) return
     const port = chrome.runtime.connect({ name: `${JOB_PORT_PREFIX}${this.mediaId}` })
     this.port = port
     port.onMessage.addListener((ev: JobEvent) => this.onEvent(ev))
@@ -96,7 +110,13 @@ export class PlayerController {
       if (this.port === port) this.port = null
       if (!this.disposed && this.state === 'working') this.setPill('pill_error', 'error')
     })
-    const req: JobRequest = { kind: 'job/start', mediaId: this.mediaId, force, pageUrl: location.href }
+    const req: JobRequest = {
+      kind: 'job/start',
+      mediaId: this.mediaId,
+      force,
+      pageUrl: location.href,
+      nativeUtterances,
+    }
     port.postMessage(req)
   }
 
@@ -243,6 +263,7 @@ export class PlayerController {
 
     this.root.appendChild(menu)
     this.menu = menu
+    this.positionMenu(menu)
     setTimeout(() => {
       const close = (e: MouseEvent): void => {
         if (!menu.contains(e.target as Node)) this.closeMenu()
@@ -265,6 +286,22 @@ export class PlayerController {
     const b = this.menuItem(`${active ? '✓ ' : ' '}${label}`, fn)
     if (active) b.classList.add('acap-menu-active')
     return b
+  }
+
+  /** Anchor the fixed menu under the pill, flipping up / clamping to stay on screen. */
+  private positionMenu(menu: HTMLDivElement): void {
+    const r = this.pill.getBoundingClientRect()
+    const mw = menu.offsetWidth || 220
+    const mh = menu.offsetHeight || 240
+    const margin = 8
+    let top = r.bottom + 6
+    if (top + mh > window.innerHeight - margin) {
+      // Not enough room below — prefer above the pill, else clamp.
+      top = Math.max(margin, Math.min(r.top - 6 - mh, window.innerHeight - margin - mh))
+    }
+    const left = Math.max(margin, Math.min(r.right - mw, window.innerWidth - margin - mw))
+    menu.style.top = `${Math.round(top)}px`
+    menu.style.left = `${Math.round(left)}px`
   }
 
   private menuSep(): HTMLDivElement {

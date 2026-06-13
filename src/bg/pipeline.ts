@@ -88,26 +88,12 @@ async function runJob(
     }
   }
 
-  const asrKey = asrKeyFor(settings)
-  if (!asrKey) throw new JobError('toast_no_asr_key')
   const llmKey = llmKeyFor(settings)
   if (!llmKey) throw new JobError('toast_no_llm_key')
 
-  setPhase(job, 'fetching_audio')
-  const captured = await lookupMedia(mediaId)
-  if (!captured) throw new JobError('toast_need_play')
-
-  const asr = getAsrProvider(settings.asr.provider)
-  const terms =
-    settings.asr.provider === 'deepgram'
-      ? glossaryForDeepgram(settings.asr.customTerms)
-      : glossaryTerms(settings.asr.customTerms)
   const provider = getTranslateProvider(settings.llm.provider)
   const isOpenAi = settings.llm.provider === 'openai'
   const glossary = glossaryForPrompt(settings.asr.customTerms)
-
-  const transcribe = (payload: Parameters<typeof asr.transcribe>[0]) =>
-    asr.transcribe(payload, { key: asrKey, sourceLang: settings.asr.sourceLang, terms, signal })
 
   const cues: Cue[] = []
 
@@ -137,47 +123,70 @@ async function runJob(
     })
   }
 
-  // Pick the first audio source the ASR backend actually accepts (some X
-  // renditions don't decode), then process its windows progressively.
-  setPhase(job, 'transcribing')
-  const plans = await resolveAudioPlans(captured, WINDOW_SEC, signal)
-  let active: AudioPlan | null = null
-  let firstUtterances: Utterance[] = []
-  let lastErr: unknown
-  broadcast(job, { kind: 'job/debug', info: `plans: ${plans.map((p) => p.label).join(', ')}` })
-  for (const plan of plans) {
-    if (signal.aborted) return
-    try {
-      const payload = await plan.getWindow(0)
-      const head = [...payload.bytes.subarray(0, 4)].map((b) => b.toString(16).padStart(2, '0')).join(' ')
-      broadcast(job, {
-        kind: 'job/debug',
-        info: `try "${plan.label}": ${payload.bytes.length}B ${payload.mime} head=${head}`,
-      })
-      const utts = await transcribe(payload)
-      active = plan
-      firstUtterances = utts
-      broadcast(job, { kind: 'job/debug', info: `OK "${plan.label}" → ${utts.length} utterances` })
-      break
-    } catch (e) {
-      if (signal.aborted) throw e
-      if (e instanceof JobError && e.key === 'err_asr_auth') throw e // a bad key won't improve
-      lastErr = e
-      broadcast(job, { kind: 'job/debug', info: `rejected "${plan.label}": ${(e as Error).message}` })
-      // try the next candidate source
+  if (req.nativeUtterances && req.nativeUtterances.length > 0) {
+    // The video shipped its own subtitle track — translate it directly, no ASR.
+    broadcast(job, { kind: 'job/debug', info: `native captions: ${req.nativeUtterances.length} cues` })
+    setPhase(job, 'translating')
+    await processWindow(req.nativeUtterances, 0)
+    broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: 1 } })
+  } else {
+    const asrKey = asrKeyFor(settings)
+    if (!asrKey) throw new JobError('toast_no_asr_key')
+
+    setPhase(job, 'fetching_audio')
+    const captured = await lookupMedia(mediaId)
+    if (!captured) throw new JobError('toast_need_play')
+
+    const asr = getAsrProvider(settings.asr.provider)
+    const terms =
+      settings.asr.provider === 'deepgram'
+        ? glossaryForDeepgram(settings.asr.customTerms)
+        : glossaryTerms(settings.asr.customTerms)
+    const transcribe = (payload: Parameters<typeof asr.transcribe>[0]) =>
+      asr.transcribe(payload, { key: asrKey, sourceLang: settings.asr.sourceLang, terms, signal })
+
+    // Pick the first audio source the ASR backend actually accepts (some X
+    // renditions don't decode), then process its windows progressively.
+    setPhase(job, 'transcribing')
+    const plans = await resolveAudioPlans(captured, WINDOW_SEC, signal)
+    let active: AudioPlan | null = null
+    let firstUtterances: Utterance[] = []
+    let lastErr: unknown
+    broadcast(job, { kind: 'job/debug', info: `plans: ${plans.map((p) => p.label).join(', ')}` })
+    for (const plan of plans) {
+      if (signal.aborted) return
+      try {
+        const payload = await plan.getWindow(0)
+        const head = [...payload.bytes.subarray(0, 4)].map((b) => b.toString(16).padStart(2, '0')).join(' ')
+        broadcast(job, {
+          kind: 'job/debug',
+          info: `try "${plan.label}": ${payload.bytes.length}B ${payload.mime} head=${head}`,
+        })
+        const utts = await transcribe(payload)
+        active = plan
+        firstUtterances = utts
+        broadcast(job, { kind: 'job/debug', info: `OK "${plan.label}" → ${utts.length} utterances` })
+        break
+      } catch (e) {
+        if (signal.aborted) throw e
+        if (e instanceof JobError && e.key === 'err_asr_auth') throw e // a bad key won't improve
+        lastErr = e
+        broadcast(job, { kind: 'job/debug', info: `rejected "${plan.label}": ${(e as Error).message}` })
+        // try the next candidate source
+      }
     }
-  }
-  if (!active) throw lastErr instanceof Error ? lastErr : new JobError('err_audio_fetch')
+    if (!active) throw lastErr instanceof Error ? lastErr : new JobError('err_audio_fetch')
 
-  setPhase(job, 'translating')
-  await processWindow(firstUtterances, active.startTimes[0] ?? 0)
-  broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: 1 / active.total } })
+    setPhase(job, 'translating')
+    await processWindow(firstUtterances, active.startTimes[0] ?? 0)
+    broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: 1 / active.total } })
 
-  for (let i = 1; i < active.total; i++) {
-    if (signal.aborted) return
-    const utts = await transcribe(await active.getWindow(i))
-    await processWindow(utts, active.startTimes[i] ?? 0)
-    broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: (i + 1) / active.total } })
+    for (let i = 1; i < active.total; i++) {
+      if (signal.aborted) return
+      const utts = await transcribe(await active.getWindow(i))
+      await processWindow(utts, active.startTimes[i] ?? 0)
+      broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: (i + 1) / active.total } })
+    }
   }
 
   if (cues.length === 0) throw new JobError('err_no_speech')
