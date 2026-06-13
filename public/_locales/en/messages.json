@@ -23,6 +23,7 @@
   "toast_no_asr_key": { "message": "No ASR key configured. Open Settings to add one." },
   "toast_no_llm_key": { "message": "No translation key configured. Open Settings to add one." },
   "toast_cached": { "message": "Loaded from cache." },
+  "toast_ready": { "message": "Captions ready — they appear on the video as it plays. Press play." },
   "toast_translation_partial": { "message": "Some lines could not be translated; original is shown." },
 
   "err_asr_auth": { "message": "ASR provider rejected the API key. Check it in Settings." },

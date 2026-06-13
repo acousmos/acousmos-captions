@@ -122,3 +122,24 @@ export function findCueIndex(cues: Cue[], time: number): number {
   }
   return -1
 }
+
+/**
+ * Index of the last cue starting at or before `time`, or -1 if none.
+ * Used to keep the most recent line on screen while the video is paused in a
+ * gap between cues (so pausing never blanks the captions).
+ */
+export function lastCueIndexBefore(cues: Cue[], time: number): number {
+  let lo = 0
+  let hi = cues.length - 1
+  let ans = -1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    if (cues[mid]!.start <= time) {
+      ans = mid
+      lo = mid + 1
+    } else {
+      hi = mid - 1
+    }
+  }
+  return ans
+}

@@ -21,6 +21,7 @@ export class PlayerController {
   private mediaId: string
   private captionsOn = true
   private nudged = false
+  private readyNotified = false
   private disposed = false
 
   constructor(
@@ -107,6 +108,7 @@ export class PlayerController {
         this.cues = ev.cues
         this.ensureOverlay().setCues(this.cues)
         this.setPill('pill_on', 'live') // English is on screen; translation streams in
+        this.notifyReady()
         break
       }
       case 'job/translated': {
@@ -117,7 +119,8 @@ export class PlayerController {
         this.cues = ev.result.cues
         this.ensureOverlay().setCues(this.cues)
         this.setPill('pill_on', 'live')
-        if (ev.fromCache) toast(t('toast_cached'), 1800)
+        // Cached results skip the utterances event, so notify here too.
+        this.notifyReady()
         break
       }
       case 'job/error': {
@@ -158,6 +161,13 @@ export class PlayerController {
     } finally {
       v.muted = wasMuted
     }
+  }
+
+  /** Tell the user, once, that captions are live and where they show up. */
+  private notifyReady(): void {
+    if (this.readyNotified) return
+    this.readyNotified = true
+    if (this.video.paused) toast(t('toast_ready'), 4000)
   }
 
   private ensureOverlay(): CaptionOverlay {

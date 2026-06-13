@@ -23,6 +23,7 @@
   "toast_no_asr_key": { "message": "尚未配置语音识别 Key,请先到设置页添加。" },
   "toast_no_llm_key": { "message": "尚未配置翻译 Key,请先到设置页添加。" },
   "toast_cached": { "message": "已从缓存加载。" },
+  "toast_ready": { "message": "字幕已就绪 — 播放视频即可在画面上看到。" },
   "toast_translation_partial": { "message": "部分句子翻译失败,已显示原文。" },
 
   "err_asr_auth": { "message": "语音识别服务拒绝了该 API Key,请到设置页检查。" },

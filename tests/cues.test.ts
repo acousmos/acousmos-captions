@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCues, DEFAULT_CUE_OPTIONS, findCueIndex } from '../src/core/cues'
+import { buildCues, DEFAULT_CUE_OPTIONS, findCueIndex, lastCueIndexBefore } from '../src/core/cues'
 import type { Utterance } from '../src/shared/types'
 
 describe('buildCues', () => {
@@ -96,5 +96,24 @@ describe('findCueIndex', () => {
   it('returns -1 in gaps and outside range', () => {
     expect(findCueIndex(cues, 2.5)).toBe(-1)
     expect(findCueIndex(cues, 100)).toBe(-1)
+  })
+})
+
+describe('lastCueIndexBefore', () => {
+  const cues = buildCues([
+    { start: 0, end: 2, text: 'a' },
+    { start: 3, end: 5, text: 'b' },
+    { start: 6, end: 8, text: 'c' },
+  ])
+  it('returns the covering cue when inside one', () => {
+    expect(lastCueIndexBefore(cues, 4)).toBe(1)
+  })
+  it('returns the most recent preceding cue when in a gap (linger when paused)', () => {
+    expect(lastCueIndexBefore(cues, 2.5)).toBe(0)
+    expect(lastCueIndexBefore(cues, 5.5)).toBe(1)
+    expect(lastCueIndexBefore(cues, 100)).toBe(2)
+  })
+  it('returns -1 before the first cue', () => {
+    expect(lastCueIndexBefore(cues, -1)).toBe(-1)
   })
 })

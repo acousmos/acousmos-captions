@@ -1,4 +1,4 @@
-import { findCueIndex } from '../core/cues'
+import { findCueIndex, lastCueIndexBefore } from '../core/cues'
 import type { Settings } from '../shared/settings'
 import type { Cue } from '../shared/types'
 
@@ -99,7 +99,10 @@ export class CaptionOverlay {
 
   private onTick = (): void => {
     if (!this.visible || this.cues.length === 0) return
-    const idx = findCueIndex(this.cues, this.video.currentTime)
+    let idx = findCueIndex(this.cues, this.video.currentTime)
+    // While paused in a gap, keep the most recent line on screen instead of
+    // blanking — so a paused video never looks like captions failed.
+    if (idx === -1 && this.video.paused) idx = lastCueIndexBefore(this.cues, this.video.currentTime)
     if (idx === this.lastIndex) return
     this.lastIndex = idx
     if (idx === -1) {
