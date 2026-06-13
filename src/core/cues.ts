@@ -1,60 +1,85 @@
 import type { Cue, Utterance, Word } from '../shared/types'
 
 export interface CueOptions {
-  /** Max characters of source text per cue. */
+  /** Hard cap on source characters per cue (a run-on is split here). */
   maxChars: number
-  /** Max cue duration in seconds. */
+  /** Hard cap on cue duration in seconds. */
   maxDur: number
-  /** Merge adjacent utterances when the silence between them is ≤ this. */
-  mergeGap: number
-  /** Minimum display duration; cue end is extended up to the next cue. */
+  /** Don't end a cue on a sentence boundary shorter than this (merges
+   *  interjections like "Um." into the neighbouring sentence). */
+  softMin: number
+  /** A pause this long (s) after sentence-final punctuation ends the cue
+   *  even below softMin. */
+  shortGap: number
+  /** Any silence this long (s) ends the cue regardless of punctuation. */
+  hardGap: number
+  /** Minimum on-screen duration; a cue's end is stretched up to the next. */
   minDur: number
 }
 
+/**
+ * Defaults tuned for spoken talks: cues are whole sentences where possible
+ * (so translation sees complete thoughts and lines linger long enough to
+ * read), capped so a run-on never becomes one giant cue.
+ */
 export const DEFAULT_CUE_OPTIONS: CueOptions = {
-  maxChars: 84,
-  maxDur: 7,
-  mergeGap: 0.5,
-  minDur: 0.8,
+  maxChars: 140,
+  maxDur: 12,
+  softMin: 10,
+  shortGap: 0.4,
+  hardGap: 1.5,
+  minDur: 1.0,
 }
+
+const SENTENCE_END = /[.!?。！？…]["'”’)\]]?$/
 
 /**
  * Build display cues from ASR utterances.
  *
- * Timestamp policy: every cue boundary is an ASR-produced timestamp (utterance
- * or word boundary). This step may SPLIT overlong utterances at word
- * boundaries and MERGE adjacent short ones — translation later never touches
- * timing at all (it only fills `tgt` keyed by cue id).
+ * Timestamp policy: cue boundaries are always ASR-produced word/utterance
+ * timestamps. This step groups words into sentence-sized cues — merging across
+ * ASR utterance boundaries when a sentence was split (e.g. "…Google" + "Cloud?"
+ * → one cue) and splitting only when a cap is exceeded. Translation later never
+ * touches timing; it only fills `tgt` keyed by cue id.
  */
 export function buildCues(utterances: Utterance[], opts: CueOptions = DEFAULT_CUE_OPTIONS): Cue[] {
-  const pieces: Omit<Cue, 'id'>[] = []
-  for (const u of utterances) {
-    for (const p of splitUtterance(u, opts)) pieces.push(p)
-  }
-  pieces.sort((a, b) => a.start - b.start)
+  const words = flattenWords(utterances)
+  if (words.length === 0) return []
 
-  // Merge-only pass.
-  const merged: Omit<Cue, 'id'>[] = []
-  for (const p of pieces) {
-    const prev = merged[merged.length - 1]
-    if (
-      prev &&
-      p.start - prev.end <= opts.mergeGap &&
-      p.end - prev.start <= opts.maxDur &&
-      prev.src.length + p.src.length + 1 <= opts.maxChars
-    ) {
-      prev.end = p.end
-      prev.src = joinText(prev.src, p.src)
-    } else {
-      merged.push({ ...p })
+  const cues: Omit<Cue, 'id'>[] = []
+  let bucket: Word[] = []
+  let chars = 0
+
+  const flush = (): void => {
+    if (bucket.length === 0) return
+    const first = bucket[0]!
+    const last = bucket[bucket.length - 1]!
+    const src = joinWords(bucket)
+    if (src) cues.push({ start: first.start, end: last.end, src })
+    bucket = []
+    chars = 0
+  }
+
+  for (const w of words) {
+    if (bucket.length > 0) {
+      const prev = bucket[bucket.length - 1]!
+      const start = bucket[0]!.start
+      const gap = w.start - prev.end
+      const wouldExceed = chars + w.text.length + 1 > opts.maxChars || w.end - start > opts.maxDur
+      const sentenceBoundary =
+        SENTENCE_END.test(prev.text) && (chars >= opts.softMin || gap >= opts.shortGap)
+      if (wouldExceed || sentenceBoundary || gap >= opts.hardGap) flush()
     }
+    bucket.push(w)
+    chars += w.text.length + 1
   }
+  flush()
 
-  // Readability pass: guarantee a minimum on-screen time without overlapping
-  // the next cue's ASR anchor.
-  for (let i = 0; i < merged.length; i++) {
-    const cur = merged[i]!
-    const next = merged[i + 1]
+  // Readability: guarantee a minimum on-screen time without overrunning the
+  // next cue's ASR anchor.
+  for (let i = 0; i < cues.length; i++) {
+    const cur = cues[i]!
+    const next = cues[i + 1]
     if (cur.end - cur.start < opts.minDur) {
       const cap = next ? next.start : cur.start + opts.minDur
       cur.end = Math.min(cur.start + opts.minDur, Math.max(cur.end, cap))
@@ -62,51 +87,39 @@ export function buildCues(utterances: Utterance[], opts: CueOptions = DEFAULT_CU
     }
   }
 
-  return merged.map((p, id) => ({ id, ...p }))
+  return cues.map((c, id) => ({ id, ...c }))
 }
 
-function splitUtterance(u: Utterance, opts: CueOptions): Omit<Cue, 'id'>[] {
-  const text = u.text.trim()
-  if (!text) return []
-  const tooLong = text.length > opts.maxChars || u.end - u.start > opts.maxDur
-  if (!tooLong || !u.words || u.words.length < 2) {
-    return [{ start: u.start, end: u.end, src: text }]
-  }
-
-  const out: Omit<Cue, 'id'>[] = []
-  let bucket: Word[] = []
-  let bucketChars = 0
-  const flush = () => {
-    if (bucket.length === 0) return
-    const first = bucket[0]!
-    const last = bucket[bucket.length - 1]!
-    out.push({ start: first.start, end: last.end, src: bucket.map((w) => w.text).join(' ').trim() })
-    bucket = []
-    bucketChars = 0
-  }
-  for (const w of u.words) {
-    const wLen = w.text.length + (bucket.length > 0 ? 1 : 0)
-    const start = bucket[0]?.start ?? w.start
-    if (bucket.length > 0 && (bucketChars + wLen > opts.maxChars || w.end - start > opts.maxDur)) {
-      // Prefer breaking after sentence punctuation when we recently passed one.
-      flush()
+/** Flatten utterances into a single time-ordered word stream. */
+function flattenWords(utterances: Utterance[]): Word[] {
+  const words: Word[] = []
+  for (const u of utterances) {
+    if (u.words && u.words.length > 0) {
+      for (const w of u.words) {
+        const text = w.text.trim()
+        if (text) words.push({ text, start: w.start, end: w.end })
+      }
+    } else {
+      const text = u.text.trim()
+      if (text) words.push({ text, start: u.start, end: u.end })
     }
-    bucket.push(w)
-    bucketChars += wLen
-    const t = w.text
-    if (/[.!?。!?…]["')\]]?$/.test(t) && bucketChars > opts.maxChars * 0.5) flush()
   }
-  flush()
-  return out
+  words.sort((a, b) => a.start - b.start)
+  return words
 }
 
-function joinText(a: string, b: string): string {
-  // CJK text concatenates without a space.
-  const lastA = a.slice(-1)
-  const firstB = b.slice(0, 1)
-  const cjk = /[　-鿿豈-﫿]/
-  if (cjk.test(lastA) && cjk.test(firstB)) return a + b
-  return `${a} ${b}`
+/** Join words, omitting the space between CJK neighbours. */
+function joinWords(words: Word[]): string {
+  let out = ''
+  for (const w of words) {
+    if (!out) {
+      out = w.text
+      continue
+    }
+    const cjk = /[　-〿㐀-鿿＀-￯]/
+    out += cjk.test(out.slice(-1)) && cjk.test(w.text[0] ?? '') ? w.text : ` ${w.text}`
+  }
+  return out.trim()
 }
 
 /** Binary search: index of the cue covering `time`, or -1. */
