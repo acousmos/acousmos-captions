@@ -367,7 +367,7 @@ export class PlayerController {
     if (this.engine) {
       const info = document.createElement('div')
       info.className = 'acap-menu-info'
-      info.textContent = `${this.engine.provider} · ${this.engine.model}${this.engine.fromCache ? ' · cache' : ''}`
+      info.textContent = `${this.engine.provider} · ${this.engine.model}${this.engine.fromCache ? ` · ${t('menu_engine_cached')}` : ''}`
       menu.appendChild(this.menuSep())
       menu.appendChild(info)
     }
