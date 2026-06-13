@@ -23,8 +23,6 @@ export interface Settings {
     enabled: boolean
     /** Which lines to render. */
     mode: 'bilingual' | 'source' | 'target'
-    /** Where the caption block sits relative to the player. */
-    placement: 'overlay' | 'below'
     srcFirst: boolean
     /** Multiplier applied to the player-width-derived base size. */
     fontScale: number
@@ -53,7 +51,6 @@ export const DEFAULT_SETTINGS: Settings = {
   display: {
     enabled: true,
     mode: 'bilingual',
-    placement: 'overlay',
     srcFirst: true,
     fontScale: 0.85,
     bgOpacity: 0.55,

@@ -24,6 +24,9 @@ export class PlayerController {
   private nudged = false
   private readyNotified = false
   private disposed = false
+  private enabled = true
+  private repositionScheduled = false
+  private rootResizeObserver: ResizeObserver | null = null
 
   constructor(
     private video: HTMLVideoElement,
@@ -44,7 +47,19 @@ export class PlayerController {
       this.onPillClick()
     })
     this.root.appendChild(this.pill)
-    this.container.appendChild(this.root)
+    // Mount the interactive UI at document level, not inside the player: X wraps
+    // the player in z-index:0 stacking contexts and overlays a transparent
+    // click-catcher on top, so a pill inside the player can't receive clicks no
+    // matter its z-index. A fixed, body-level root sits above all of it; we keep
+    // it pinned to the player's top-right and reparent into the fullscreen
+    // element while fullscreen.
+    document.body.appendChild(this.root)
+    this.positionRoot()
+    window.addEventListener('scroll', this.reposition, { passive: true, capture: true })
+    window.addEventListener('resize', this.reposition, { passive: true })
+    document.addEventListener('fullscreenchange', this.onFullscreenChange)
+    this.rootResizeObserver = new ResizeObserver(this.reposition)
+    this.rootResizeObserver.observe(this.container)
   }
 
   static mediaIdFor(video: HTMLVideoElement): { id: string } | 'gif' | null {
@@ -61,12 +76,51 @@ export class PlayerController {
 
   /** Master on/off from the popup: hide the pill and overlay when off. */
   setEnabled(on: boolean): void {
-    this.root.style.display = on ? '' : 'none'
+    this.enabled = on
+    this.positionRoot()
     if (this.overlay) this.overlay.setVisible(on && this.captionsOn)
+  }
+
+  /** Pin the body-level pill to the player's top-right; hide if off-screen. */
+  private positionRoot(): void {
+    const r = this.container.getBoundingClientRect()
+    const offscreen =
+      !this.container.isConnected || r.width === 0 || r.bottom < 0 || r.top > window.innerHeight
+    if (!this.enabled || offscreen) {
+      this.root.style.display = 'none'
+      return
+    }
+    this.root.style.display = ''
+    this.root.style.top = `${Math.round(r.top + 8)}px`
+    this.root.style.right = `${Math.round(window.innerWidth - r.right + 8)}px`
+    this.root.style.left = 'auto'
+  }
+
+  private reposition = (): void => {
+    if (this.repositionScheduled) return
+    this.repositionScheduled = true
+    requestAnimationFrame(() => {
+      this.repositionScheduled = false
+      if (!this.disposed) this.positionRoot()
+      if (this.menu) this.positionMenu(this.menu)
+    })
+  }
+
+  private onFullscreenChange = (): void => {
+    // Fullscreen renders only the fullscreen element's subtree, so move our
+    // root inside it; otherwise keep it at body level.
+    const fs = document.fullscreenElement
+    if (fs && fs.contains(this.container)) fs.appendChild(this.root)
+    else document.body.appendChild(this.root)
+    this.reposition()
   }
 
   dispose(): void {
     this.disposed = true
+    window.removeEventListener('scroll', this.reposition, { capture: true } as EventListenerOptions)
+    window.removeEventListener('resize', this.reposition)
+    document.removeEventListener('fullscreenchange', this.onFullscreenChange)
+    this.rootResizeObserver?.disconnect()
     this.port?.disconnect()
     this.overlay?.dispose()
     this.menu?.remove()

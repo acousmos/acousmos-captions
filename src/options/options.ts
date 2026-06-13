@@ -35,7 +35,6 @@ const els = {
   anthropicKey: $<HTMLInputElement>('anthropic-key'),
   targetLang: $<HTMLSelectElement>('target-lang'),
   mode: $<HTMLSelectElement>('mode'),
-  placement: $<HTMLSelectElement>('placement'),
   order: $<HTMLSelectElement>('order'),
   fontScale: $<HTMLInputElement>('font-scale'),
   bgOpacity: $<HTMLInputElement>('bg-opacity'),
@@ -57,7 +56,6 @@ void loadSettings().then((s) => {
   els.anthropicKey.value = s.llm.anthropicKey
   els.targetLang.value = s.llm.targetLang
   els.mode.value = s.display.mode
-  els.placement.value = s.display.placement
   els.order.value = s.display.srcFirst ? 'src' : 'tgt'
   els.fontScale.value = String(s.display.fontScale)
   els.bgOpacity.value = String(s.display.bgOpacity)
@@ -89,7 +87,6 @@ function collect(): Settings {
     display: {
       enabled: settings.display.enabled,
       mode: els.mode.value as Settings['display']['mode'],
-      placement: els.placement.value as Settings['display']['placement'],
       srcFirst: els.order.value === 'src',
       fontScale: Number(els.fontScale.value),
       bgOpacity: Number(els.bgOpacity.value),

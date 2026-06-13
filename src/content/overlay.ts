@@ -16,7 +16,6 @@ export class CaptionOverlay {
   private lastIndex = -2
   private raf = 0
   private visible = true
-  private isBelow = false
   private disposed = false
   private containerWidth = 600
 
@@ -31,6 +30,7 @@ export class CaptionOverlay {
     this.srcEl.className = 'acap-line acap-line-src'
     this.tgtEl = document.createElement('div')
     this.tgtEl.className = 'acap-line acap-line-tgt'
+    this.container.appendChild(this.root)
     this.applyDisplay(display)
 
     this.video.addEventListener('timeupdate', this.onTick)
@@ -69,16 +69,7 @@ export class CaptionOverlay {
     this.display = display
     this.root.style.setProperty('--acap-bg-alpha', String(display.bgOpacity))
     this.root.style.setProperty('--acap-font-scale', String(display.fontScale))
-
-    // Re-mount if placement changed: 'overlay' sits absolutely inside the
-    // player; 'below' is a normal-flow block directly under it.
-    const below = display.placement === 'below'
-    if (below !== this.isBelow || !this.root.isConnected) {
-      this.isBelow = below
-      this.root.classList.toggle('acap-overlay-below', below)
-      if (below) this.container.insertAdjacentElement('afterend', this.root)
-      else this.container.appendChild(this.root)
-    }
+    if (!this.root.isConnected) this.container.appendChild(this.root)
 
     // Line order + which lines participate (mode).
     const order = display.srcFirst ? [this.srcEl, this.tgtEl] : [this.tgtEl, this.srcEl]

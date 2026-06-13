@@ -1,9 +1,9 @@
 /* Acousmos Captions — injected UI. All classes prefixed acap-. */
 
+/* Mounted on <body> (or the fullscreen element) and pinned to the player's
+   top-right in JS, so X's player stacking contexts can't bury or eat it. */
 .acap-root {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+  position: fixed;
   z-index: 2147483600;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
@@ -109,21 +109,6 @@
   --acap-bg-alpha: 0.55;
 }
 
-/* Docked below the player, in normal flow — never covers the video. */
-.acap-overlay-below {
-  position: static;
-  left: auto;
-  bottom: auto;
-  transform: none;
-  max-width: 100%;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px 10px;
-  margin-top: 2px;
-  background: rgba(8, 12, 16, 0.92);
-  border-radius: 8px;
-}
-
 .acap-line {
   display: inline-block;
   text-align: center;
@@ -137,6 +122,9 @@
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   white-space: pre-wrap;
+  /* Balance wrapped lines (industry-standard for subtitles) instead of a long
+     first line and a short orphan second line. */
+  text-wrap: balance;
 }
 
 .acap-line:empty {
