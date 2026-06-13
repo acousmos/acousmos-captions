@@ -15,7 +15,7 @@ Most videos on X have no captions. Existing translation extensions lock AI capti
 Acousmos Captions takes a different position:
 
 - **Bilingual, not translated.** You probably understand *some* of the original language — you just can't keep up by ear. The original line stays on screen as ground truth; the translation underneath is the assist. When a translation is imperfect, the original saves you. Translation-only captions can't do that.
-- **BYOK all the way down.** Both the ASR key (Deepgram / Soniox) *and* the LLM key (OpenAI-compatible / Anthropic) are yours, stored only in your browser, sent only to the provider you choose.
+- **BYOK all the way down.** Both the ASR key (Deepgram / Soniox) *and* the LLM key (OpenAI-compatible / Gemini / Anthropic) are yours, stored only in your browser, sent only to the provider you choose.
 - **No subscription.** X videos are short; transcribing one costs fractions of a cent on your own key. There is nothing here worth ten dollars a month.
 
 ## How it works
@@ -53,6 +53,7 @@ Until the Chrome Web Store listing is live:
 | ASR | Deepgram (default, `nova-3`) | console.deepgram.com — generous free credit |
 | ASR | Soniox (`stt-async`) | console.soniox.com |
 | LLM | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Groq, local…) | configurable base URL + model |
+| LLM | Google Gemini (`gemini-3.5-flash` default) | aistudio.google.com/apikey |
 | LLM | Anthropic (`claude-haiku-4-5` default) | console.anthropic.com |
 
 Keys live in `chrome.storage.local` only — never synced, never sent to Acousmos.
