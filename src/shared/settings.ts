@@ -1,3 +1,4 @@
+import { glossaryForPrompt } from './glossary'
 import type { AsrProviderId, LlmProviderId } from './types'
 
 export interface Settings {
@@ -126,6 +127,26 @@ export function llmCacheTag(s: Settings): string {
     return `openai@${model}@${base}`
   }
   return `${s.llm.provider}@${model}`
+}
+
+/** FNV-1a → base36, a small stable string fingerprint (no crypto needed). */
+function fingerprint(s: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
+}
+
+/**
+ * Full cache/job identity: the engine PLUS a fingerprint of the exact glossary
+ * sent to the model (built-in terms + target mappings + the user's edits). So
+ * editing the glossary — or shipping an updated built-in glossary — produces a
+ * different identity and re-translates, instead of serving a stale result.
+ */
+export function cacheIdentity(s: Settings): string {
+  return `${llmCacheTag(s)}#g${fingerprint(glossaryForPrompt(s.asr.customTerms, s.llm.targetLang))}`
 }
 
 export function onSettingsChanged(cb: (s: Settings) => void): void {

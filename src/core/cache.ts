@@ -5,12 +5,12 @@ import type { CaptionResult } from '../shared/types'
  * (or reopening the tab) must not re-pay ASR + translation.
  */
 
-// v4: cache identity now includes the OpenAI-compatible base URL too (same model
-// id at a different endpoint is a different engine). v3 added provider@model; v2
-// added the translation-alignment fix; v1 predated it. Old versions self-purge.
+// v5: cache identity now also fingerprints the glossary sent to the model, so
+// editing terms (or an updated built-in glossary) re-translates. v4 added the
+// OpenAI base URL; v3 provider@model; v2 the alignment fix. Old versions purge.
 const NAMESPACE = 'cap:'
-const PREFIX = 'cap:v4:'
-const INDEX_KEY = 'cap:index:v4'
+const PREFIX = 'cap:v5:'
+const INDEX_KEY = 'cap:index:v5'
 const MAX_ENTRIES = 60
 
 type CacheIndex = Record<string, number> // key -> lastUsed epoch ms

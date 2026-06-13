@@ -4,7 +4,7 @@ import { buildCues } from '../core/cues'
 import { glossaryForDeepgram, glossaryForPrompt, glossaryTerms } from '../shared/glossary'
 import { getTranslateProvider, translateCues } from '../core/translate'
 import type { JobEvent, JobRequest } from '../shared/messages'
-import { asrKeyFor, llmCacheTag, llmKeyFor, llmModelFor, loadSettings } from '../shared/settings'
+import { asrKeyFor, cacheIdentity, llmKeyFor, llmModelFor, loadSettings } from '../shared/settings'
 import { JobError, type CaptionResult, type Cue, type JobPhase, type Utterance } from '../shared/types'
 import { resolveAudioPlans, type AudioPlan } from './audio'
 import { lookupMedia } from './capture'
@@ -32,8 +32,8 @@ export function attachPort(port: chrome.runtime.Port, req: JobRequest): void {
   void (async () => {
     const settings = await loadSettings()
     // Same identity as the cache, so a port can't attach to a job that's running
-    // under a different translator than the current settings.
-    const key = `${req.mediaId}:${settings.llm.targetLang}:${llmCacheTag(settings)}`
+    // under a different translator or glossary than the current settings.
+    const key = `${req.mediaId}:${settings.llm.targetLang}:${cacheIdentity(settings)}`
 
     const existing = jobs.get(key)
     if (existing && !req.force) {
@@ -82,7 +82,7 @@ async function runJob(
   const signal = job.abort.signal
 
   if (!req.force) {
-    const cached = await cacheGet(mediaId, targetLang, llmCacheTag(settings))
+    const cached = await cacheGet(mediaId, targetLang, cacheIdentity(settings))
     if (cached) {
       job.snapshot = { phase: 'done', cues: cached.cues }
       broadcast(job, { kind: 'job/done', result: cached, fromCache: true })
@@ -203,7 +203,7 @@ async function runJob(
     llmProvider: settings.llm.provider,
     llmModel,
   }
-  await cachePut(result, llmCacheTag(settings))
+  await cachePut(result, cacheIdentity(settings))
   job.snapshot = { phase: 'done', cues }
   broadcast(job, { kind: 'job/done', result, fromCache: false })
 

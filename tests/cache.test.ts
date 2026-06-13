@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { cacheClear, cacheGet, cachePut, purgeOldCaches } from '../src/core/cache'
-import { DEFAULT_SETTINGS, llmCacheTag, type Settings } from '../src/shared/settings'
+import { cacheIdentity, DEFAULT_SETTINGS, llmCacheTag, type Settings } from '../src/shared/settings'
 import type { CaptionResult } from '../src/shared/types'
 
 // Minimal in-memory chrome.storage.local for the cache module.
@@ -71,15 +71,33 @@ describe('cache', () => {
     expect(await cacheGet('m1', 'zh-CN', llmCacheTag(s))).toBeNull()
   })
 
-  it('purges only older schema versions, keeping current (v4) entries', async () => {
+  it('purges only older schema versions, keeping current entries', async () => {
     const store = installChromeMock()
     const s = settingsFor({ provider: 'openai' })
-    await cachePut(result(), llmCacheTag(s)) // writes a cap:v4: entry
+    await cachePut(result(), cacheIdentity(s)) // writes a current (cap:v5:) entry
     store.set('cap:v3:m1:zh-CN:openai@gpt-4.1-mini', { stale: true })
-    store.set('cap:index:v3', { 'cap:v3:m1:zh-CN:openai@gpt-4.1-mini': 1 })
+    store.set('cap:v4:m1:zh-CN:openai@gpt-4.1-mini', { stale: true })
+    store.set('cap:index:v4', { 'cap:v4:m1:zh-CN:openai@gpt-4.1-mini': 1 })
     await purgeOldCaches()
-    expect([...store.keys()].some((k) => k.startsWith('cap:v3:'))).toBe(false)
-    expect(store.has('cap:index:v3')).toBe(false)
-    expect(await cacheGet('m1', 'zh-CN', llmCacheTag(s))).not.toBeNull() // v4 survived
+    expect([...store.keys()].some((k) => k.startsWith('cap:v3:') || k.startsWith('cap:v4:'))).toBe(false)
+    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(s))).not.toBeNull() // current survived
+  })
+})
+
+describe('cacheIdentity (glossary is part of cache identity)', () => {
+  beforeEach(() => installChromeMock())
+
+  it('round-trips when the glossary is unchanged', async () => {
+    const s = settingsFor({ provider: 'openai' })
+    await cachePut(result(), cacheIdentity(s))
+    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(s))).not.toBeNull()
+  })
+
+  it('misses after the user edits the glossary (so the change re-translates)', async () => {
+    const before = settingsFor({ provider: 'openai' })
+    await cachePut(result(), cacheIdentity(before))
+    const after = { ...before, asr: { ...before.asr, customTerms: 'agent=代理' } }
+    expect(cacheIdentity(after)).not.toBe(cacheIdentity(before))
+    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(after))).toBeNull()
   })
 })
