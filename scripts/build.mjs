@@ -56,6 +56,17 @@ async function addDevHostPermission() {
  */
 function startReloadServer(port) {
   const sockets = new Set()
+  const send = (text) => {
+    const payload = Buffer.from(text)
+    const frame = Buffer.concat([Buffer.from([0x81, payload.length]), payload]) // FIN + text, len < 126
+    for (const s of sockets) {
+      try {
+        s.write(frame)
+      } catch {
+        sockets.delete(s)
+      }
+    }
+  }
   const server = createServer()
   server.on('upgrade', (req, socket) => {
     const key = req.headers['sec-websocket-key']
@@ -75,20 +86,17 @@ function startReloadServer(port) {
   })
   server.on('error', (e) => console.warn('[reload] server error:', e.message))
   server.listen(port, '127.0.0.1', () => console.log(`[reload] ws://127.0.0.1:${port}`))
+  // Keepalive: an MV3 service worker is killed after ~30s idle, which drops the
+  // connection and loses reload signals. A periodic message keeps the WS active
+  // so the SW stays alive and always receives reloads.
+  setInterval(() => send('ping'), 10_000)
   let timer
   return () => {
     clearTimeout(timer)
     timer = setTimeout(() => {
-      const payload = Buffer.from('reload')
-      const frame = Buffer.concat([Buffer.from([0x81, payload.length]), payload]) // FIN + text
-      for (const s of sockets) {
-        try {
-          s.write(frame)
-        } catch {
-          sockets.delete(s)
-        }
-      }
+      send('reload')
       if (sockets.size > 0) console.log(`[reload] notified ${sockets.size} client(s)`)
+      else console.log('[reload] no clients connected (open/refresh an X tab to wake the SW)')
     }, 150)
   }
 }
