@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isLikelyMasterPlaylist, mediaIdFromPoster, streamInfoFromUrl } from '../src/core/mediaid'
+import { isMasterPlaylistUrl, mediaIdFromPoster, streamInfoFromUrl } from '../src/core/mediaid'
 
 describe('mediaIdFromPoster', () => {
   it('extracts id from amplify_video_thumb posters', () => {
@@ -25,20 +25,22 @@ describe('mediaIdFromPoster', () => {
 })
 
 describe('streamInfoFromUrl', () => {
-  it('parses master playlist URLs', () => {
+  it('parses master playlist URLs and recognizes the true master', () => {
     const u = 'https://video.twimg.com/amplify_video/1799887766554433221/pl/abc.m3u8?tag=14'
     expect(streamInfoFromUrl(u)).toEqual({ id: '1799887766554433221', type: 'm3u8', url: u })
-    expect(isLikelyMasterPlaylist(u)).toBe(true)
+    expect(isMasterPlaylistUrl(u)).toBe(true)
   })
 
-  it('parses ext_tw_video playlist URLs', () => {
+  it('recognizes ext_tw_video master playlists', () => {
     const u = 'https://video.twimg.com/ext_tw_video/123/pu/pl/xyz.m3u8'
     expect(streamInfoFromUrl(u)?.id).toBe('123')
-    expect(isLikelyMasterPlaylist(u)).toBe(true)
+    expect(isMasterPlaylistUrl(u)).toBe(true)
   })
 
-  it('treats rendition playlists as non-master', () => {
-    expect(isLikelyMasterPlaylist('https://video.twimg.com/amplify_video/123/aud/32000.m3u8')).toBe(false)
+  it('treats rendition playlists (codec/res subpath) as non-master', () => {
+    expect(isMasterPlaylistUrl('https://video.twimg.com/amplify_video/123/pl/avc1/640x360/x.m3u8')).toBe(false)
+    expect(isMasterPlaylistUrl('https://video.twimg.com/amplify_video/123/pl/mp4a/128000/x.m3u8')).toBe(false)
+    expect(isMasterPlaylistUrl('https://video.twimg.com/amplify_video/123/aud/32000.m3u8')).toBe(false)
   })
 
   it('parses mp4 variants with pixel area', () => {

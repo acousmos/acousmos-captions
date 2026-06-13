@@ -36,26 +36,31 @@ export async function resolveAudioPlans(
   signal: AbortSignal,
 ): Promise<AudioPlan[]> {
   const plans: AudioPlan[] = []
+  let master: ReturnType<typeof parseMaster> | null = null
 
   if (cap.masterUrl) {
     try {
       const masterText = await fetchText(cap.masterUrl, signal)
       if (isMasterPlaylist(masterText)) {
-        const master = parseMaster(masterText, cap.masterUrl)
-        const audio = master.audio.find((a) => a.isDefault) ?? master.audio[0]
-        if (audio) await pushHlsPlan(plans, 'hls-audio', audio.uri, 'audio', windowSec, signal)
-        const variant = [...master.variants].sort((a, b) => a.bandwidth - b.bandwidth)[0]
-        if (variant) await pushHlsPlan(plans, 'hls-muxed', variant.uri, 'muxed', windowSec, signal)
+        master = parseMaster(masterText, cap.masterUrl)
       } else {
-        // The captured URL was already a media playlist.
+        // Defensive: a non-master m3u8 got pinned — treat it as a media playlist.
         await pushHlsPlan(plans, 'hls', cap.masterUrl, 'muxed', windowSec, signal)
       }
     } catch (e) {
       if (signal.aborted) throw e
-      // Master fetch/parse failed — rely on the mp4 plan below.
+      // Master fetch/parse failed — rely on the fallbacks below.
     }
   }
 
+  // Primary: the dedicated audio rendition, remuxed to ADTS. Smallest payload,
+  // exactly what ASR needs — no video downloaded.
+  if (master) {
+    const audio = master.audio.find((a) => a.isDefault) ?? master.audio[0]
+    if (audio) await pushHlsPlan(plans, 'hls-audio', audio.uri, 'audio', windowSec, signal)
+  }
+
+  // Fallback: the progressive mp4 — a flat container ASR accepts directly.
   if (cap.mp4.length > 0) {
     const smallest = [...cap.mp4].sort((a, b) => a.pixels - b.pixels)[0]!
     plans.push({
@@ -64,6 +69,14 @@ export async function resolveAudioPlans(
       startTimes: [0],
       getWindow: async () => ({ bytes: await fetchBytes(smallest.url, signal), mime: 'video/mp4' }),
     })
+  }
+
+  // Last resort, only when there is no dedicated audio track at all: the lowest
+  // muxed variant. This downloads video too, so it is never used when an audio
+  // rendition exists.
+  if (master && master.audio.length === 0) {
+    const variant = [...master.variants].sort((a, b) => a.bandwidth - b.bandwidth)[0]
+    if (variant) await pushHlsPlan(plans, 'hls-muxed', variant.uri, 'muxed', windowSec, signal)
   }
 
   if (plans.length === 0) throw new JobError('toast_no_media')

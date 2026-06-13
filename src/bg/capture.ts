@@ -1,4 +1,4 @@
-import { isLikelyMasterPlaylist, streamInfoFromUrl } from '../core/mediaid'
+import { isMasterPlaylistUrl, streamInfoFromUrl } from '../core/mediaid'
 
 /**
  * Passive stream-URL capture. The X player fetches playlists/segments from
@@ -30,7 +30,9 @@ export function initCapture(): void {
       const entry = media.get(info.id) ?? { mp4: [], at: 0 }
       entry.at = Date.now()
       if (info.type === 'm3u8') {
-        if (isLikelyMasterPlaylist(info.url)) entry.masterUrl = info.url
+        // Only pin the true master so rendition selection is deterministic;
+        // ignore variant playlists the player also fetches.
+        if (isMasterPlaylistUrl(info.url)) entry.masterUrl = info.url
       } else if (!entry.mp4.some((m) => m.url === info.url)) {
         entry.mp4.push({ url: info.url, pixels: info.pixels ?? Number.MAX_SAFE_INTEGER })
       }

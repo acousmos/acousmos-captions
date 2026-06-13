@@ -44,8 +44,14 @@ export function streamInfoFromUrl(url: string): StreamInfo | null {
   return null
 }
 
-/** Master playlists live under /pl/ on both amplify and ext_tw paths. */
-export function isLikelyMasterPlaylist(url: string): boolean {
+/**
+ * The master playlist is a single token directly under /pl/
+ * (`/pl/<token>.m3u8`). Rendition playlists carry a codec/resolution subpath
+ * (`/pl/avc1/640x360/<token>.m3u8`, `/pl/mp4a/128000/<token>.m3u8`). We pin the
+ * true master so rendition selection is deterministic — never the variant that
+ * happened to be fetched last.
+ */
+export function isMasterPlaylistUrl(url: string): boolean {
   const path = url.split('?')[0] ?? url
-  return path.endsWith('.m3u8') && /\/pl\//.test(path)
+  return /\/pl\/[^/]+\.m3u8$/.test(path)
 }
