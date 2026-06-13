@@ -43,4 +43,12 @@ describe('srtFilename', () => {
     expect(srtFilename('123', 'source', 'zh-CN')).toBe('x-video-123.orig.srt')
     expect(srtFilename('123', 'target', 'zh-CN')).toBe('x-video-123.zh-CN.srt')
   })
+
+  it('tags the engine when given, sanitising it for a filename', () => {
+    expect(srtFilename('123', 'bilingual', 'zh-CN', 'gemini-3.5-flash')).toBe(
+      'x-video-123.bi-zh-CN.gemini-3.5-flash.srt',
+    )
+    expect(srtFilename('123', 'bilingual', 'zh-CN', 'gpt-4.1-mini')).toBe('x-video-123.bi-zh-CN.gpt-4.1-mini.srt')
+    expect(srtFilename('123', 'bilingual', 'zh-CN', 'weird/model name')).toBe('x-video-123.bi-zh-CN.weird-model-name.srt')
+  })
 })

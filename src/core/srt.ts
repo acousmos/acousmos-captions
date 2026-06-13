@@ -35,7 +35,10 @@ export function toSrt(cues: Cue[], mode: SrtMode): string {
   return blocks.join('\n\n') + '\n'
 }
 
-export function srtFilename(mediaId: string, mode: SrtMode, targetLang: string): string {
+export function srtFilename(mediaId: string, mode: SrtMode, targetLang: string, engine?: string): string {
   const suffix = mode === 'bilingual' ? `bi-${targetLang}` : mode === 'source' ? 'orig' : targetLang
-  return `x-video-${mediaId}.${suffix}.srt`
+  // Tag the file with the translator (e.g. gemini-3.5-flash) so exports from
+  // different engines are distinguishable when comparing them.
+  const tag = engine ? `.${engine.replace(/[^a-z0-9.-]+/gi, '-')}` : ''
+  return `x-video-${mediaId}.${suffix}${tag}.srt`
 }

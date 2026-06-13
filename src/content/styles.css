@@ -96,6 +96,16 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Non-interactive footer: the translator behind the current captions. */
+.acap-menu-info {
+  padding: 4px 12px 2px;
+  color: #8b98a5;
+  font-size: 11.5px;
+  line-height: 1.3;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 /* --- caption overlay --- */
 
 .acap-overlay {

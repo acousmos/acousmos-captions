@@ -20,6 +20,7 @@ export class PlayerController {
   private port: chrome.runtime.Port | null = null
   private state: State = 'idle'
   private cues: Cue[] = []
+  private engine: { provider: string; model: string; fromCache: boolean } | null = null
   private mediaId: string
   private captionsOn = true
   private nudged = false
@@ -223,6 +224,18 @@ export class PlayerController {
       }
       case 'job/done': {
         this.cues = ev.result.cues
+        this.engine = {
+          provider: ev.result.llmProvider,
+          model: ev.result.llmModel,
+          fromCache: ev.fromCache,
+        }
+        // So you can confirm WHICH translator produced these captions (and whether
+        // it was a fresh run or served from cache) without guessing.
+        console.debug(
+          '[acousmos-captions] captions ready —',
+          `${ev.result.llmProvider}/${ev.result.llmModel}`,
+          ev.fromCache ? '(from cache)' : '(fresh run)',
+        )
         this.ensureOverlay().setCues(this.cues)
         this.setPill('pill_on', 'live')
         // Cached results skip the utterances event, so notify here too.
@@ -335,9 +348,10 @@ export class PlayerController {
         this.overlay?.setVisible(this.captionsOn)
       }),
     )
-    menu.appendChild(this.menuItem(t('menu_export_bilingual'), () => downloadSrt(this.cues, 'bilingual', this.mediaId, lang)))
-    menu.appendChild(this.menuItem(t('menu_export_source'), () => downloadSrt(this.cues, 'source', this.mediaId, lang)))
-    menu.appendChild(this.menuItem(t('menu_export_target'), () => downloadSrt(this.cues, 'target', this.mediaId, lang)))
+    const eng = this.engine?.model
+    menu.appendChild(this.menuItem(t('menu_export_bilingual'), () => downloadSrt(this.cues, 'bilingual', this.mediaId, lang, eng)))
+    menu.appendChild(this.menuItem(t('menu_export_source'), () => downloadSrt(this.cues, 'source', this.mediaId, lang, eng)))
+    menu.appendChild(this.menuItem(t('menu_export_target'), () => downloadSrt(this.cues, 'target', this.mediaId, lang, eng)))
     menu.appendChild(this.menuSep())
     menu.appendChild(this.menuItem(t('menu_retranslate'), () => this.start(true)))
     // Escape hatch when the video's own captions are poor: force ASR.
@@ -347,6 +361,16 @@ export class PlayerController {
         void chrome.runtime.sendMessage({ kind: 'options/open' }).catch(() => undefined)
       }),
     )
+
+    // Footer: which translator produced the current captions (and whether it was
+    // served from cache), so switching providers can be confirmed at a glance.
+    if (this.engine) {
+      const info = document.createElement('div')
+      info.className = 'acap-menu-info'
+      info.textContent = `${this.engine.provider} · ${this.engine.model}${this.engine.fromCache ? ' · cache' : ''}`
+      menu.appendChild(this.menuSep())
+      menu.appendChild(info)
+    }
 
     this.root.appendChild(menu)
     this.menu = menu
