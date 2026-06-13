@@ -28,8 +28,11 @@ export async function cacheGet(mediaId: string, targetLang: string, llmTag: stri
   return result
 }
 
-export async function cachePut(result: CaptionResult): Promise<void> {
-  const key = keyFor(result.mediaId, result.targetLang, `${result.llmProvider}@${result.llmModel}`)
+/** `llmTag` MUST be the same llmCacheTag(settings) used for cacheGet, or the
+ *  result is written to a key that's never read (e.g. OpenAI's tag includes the
+ *  base URL — a reconstructed provider@model tag would silently never hit). */
+export async function cachePut(result: CaptionResult, llmTag: string): Promise<void> {
+  const key = keyFor(result.mediaId, result.targetLang, llmTag)
   await chrome.storage.local.set({ [key]: result })
   await touch(key)
 }

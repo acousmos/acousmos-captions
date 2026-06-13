@@ -203,7 +203,7 @@ async function runJob(
     llmProvider: settings.llm.provider,
     llmModel,
   }
-  await cachePut(result)
+  await cachePut(result, llmCacheTag(settings))
   job.snapshot = { phase: 'done', cues }
   broadcast(job, { kind: 'job/done', result, fromCache: false })
 
