@@ -9,6 +9,9 @@ import type { Cue } from '../shared/types'
  * source / target) and placement (over the video, or docked below it).
  */
 export class CaptionOverlay {
+  /** Shared offscreen canvas for measuring rendered text width. */
+  private static readonly measureCtx = document.createElement('canvas').getContext('2d')
+
   private root: HTMLDivElement
   private srcEl: HTMLDivElement
   private tgtEl: HTMLDivElement
@@ -144,30 +147,35 @@ export class CaptionOverlay {
     this.tgtEl.style.display = this.tgtSpan.textContent ? '' : 'none'
     const any = Boolean(this.srcSpan.textContent || this.tgtSpan.textContent)
     this.root.classList.toggle('acap-overlay-active', any)
-    this.applyFit(this.srcSpan.textContent ?? '', this.tgtSpan.textContent ?? '')
+    if (this.srcSpan.textContent) this.fitBox(this.srcSpan)
+    if (this.tgtSpan.textContent) this.fitBox(this.tgtSpan)
   }
 
   /**
-   * Auto-shrink long lines so they don't crowd a small player (the "automatic
-   * smaller font" the user asked for). Estimates how many lines each side would
-   * wrap to at full size and scales down toward a floor so the block stays ~2
-   * lines per language — never touches cue text, only display size.
+   * Size one caption box to hug its text:
+   *  - fits on one line within the player → keep one line (box = text width);
+   *  - otherwise wrap into the fewest balanced lines and set the box to the
+   *    balanced line width, so there's no long-then-short orphan and no wide
+   *    empty margins beside centered text.
+   * Width is measured with a canvas in the box's own font (accurate for mixed
+   * CJK/Latin and not clamped by the overlay's max-width like a DOM read).
    */
-  private applyFit(src: string, tgt: string): void {
-    const basePx =
-      parseFloat(getComputedStyle(this.root).getPropertyValue('--acap-font-base')) || 16
-    // CJK glyphs are ~1 unit wide, Latin ~0.55.
-    const lineUnits = (s: string): number => {
-      let u = 0
-      for (const c of s) u += /[⺀-鿿＀-￯　-〿]/.test(c) ? 1 : 0.55
-      return u
+  private fitBox(span: HTMLSpanElement): void {
+    const ctx = CaptionOverlay.measureCtx
+    if (!ctx) return
+    const cs = getComputedStyle(span)
+    ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+    const padding = 24 // ~ 2x horizontal padding + a little slack
+    const oneLine = ctx.measureText(span.textContent ?? '').width + padding
+    const avail = Math.max(80, this.containerWidth * 0.92)
+    span.style.maxWidth = `${Math.round(avail)}px`
+    if (oneLine <= avail) {
+      span.style.width = 'auto' // fits on one line — hug it
+    } else {
+      const lines = Math.ceil(oneLine / avail)
+      // Balanced line width + a small fudge so a word boundary doesn't add a row.
+      span.style.width = `${Math.min(Math.round(avail), Math.round(oneLine / lines) + 16)}px`
     }
-    // Lines wrap at each language's own size, so estimate per-line independently.
-    const linesAt = (s: string, scale: number): number =>
-      lineUnits(s) / Math.max(8, this.containerWidth / (basePx * scale))
-    const worstLines = Math.max(linesAt(src, this.display.srcScale), linesAt(tgt, this.display.tgtScale))
-    const fit = worstLines > 2 ? Math.max(0.7, 2 / worstLines) : 1
-    this.root.style.setProperty('--acap-fit-scale', fit.toFixed(3))
   }
 
   private observeResize(): void {

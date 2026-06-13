@@ -6,17 +6,6 @@
  */
 export function initDevReload(): void {
   if (!__DEV__) return
-  // chrome.runtime.reload() swaps the extension code but leaves already-open
-  // pages running the OLD content script/CSS. Since this SW only (re)starts in
-  // dev after a build-triggered reload, refresh open X tabs on startup so the
-  // page picks up the new code automatically — no manual page refresh.
-  chrome.tabs
-    .query({ url: ['https://x.com/*', 'https://twitter.com/*'] })
-    .then((tabs) => {
-      for (const tab of tabs) if (tab.id != null) chrome.tabs.reload(tab.id)
-    })
-    .catch(() => {})
-
   const connect = (): void => {
     let ws: WebSocket
     try {

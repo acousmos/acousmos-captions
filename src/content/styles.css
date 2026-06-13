@@ -117,43 +117,35 @@
   --acap-bg-alpha: 0.55;
 }
 
-/* Centered block row; balance wrapped lines so a long line splits into two
-   even rows rather than a long row + a short orphan. */
+/* Centered row; one caption box per language sits inside it. */
 .acap-line {
   display: block;
   width: 100%;
-  max-width: 92%;
-  margin: 0 auto;
   text-align: center;
-  text-wrap: balance;
 }
 
-/* Background hugs each visual line (YouTube-style): the box clones per wrapped
-   line so its width tracks that line's text, and a tight line-height makes the
-   per-line boxes sit flush as one cohesive shape rather than gappy fragments. */
+/* One box per language line. Its width is measured and set in JS so it hugs
+   the text: one line when it fits, otherwise wrapped into balanced lines with
+   no wide side gaps. */
 .acap-text {
-  display: inline;
-  padding: 0.16em 0.5em;
-  border-radius: 5px;
+  display: inline-block;
+  padding: 2px 11px;
+  border-radius: 7px;
   background: rgba(0, 0, 0, var(--acap-bg-alpha));
   color: #ffffff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-  /* ~= text height + 2x vertical padding, so consecutive line boxes meet
-     flush (a cohesive shape) instead of leaving gaps. */
-  line-height: 1.34;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+  line-height: 1.4;
   white-space: pre-wrap;
 }
 
 .acap-line-src .acap-text {
-  font-size: calc(var(--acap-font-base) * var(--acap-src-scale) * var(--acap-fit-scale, 1));
+  font-size: calc(var(--acap-font-base) * var(--acap-src-scale));
   color: #d3e3ee;
   font-weight: 500;
 }
 
 .acap-line-tgt .acap-text {
-  font-size: calc(var(--acap-font-base) * var(--acap-tgt-scale) * var(--acap-fit-scale, 1));
+  font-size: calc(var(--acap-font-base) * var(--acap-tgt-scale));
   font-weight: 600;
 }
 
