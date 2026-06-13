@@ -4,8 +4,9 @@ import type { Cue } from '../shared/types'
 
 /**
  * Bilingual caption overlay bound to one <video>. The source line is the
- * anchor (always rendered); the translated line appears underneath as soon as
- * its batch lands. Rendering is rAF-driven while playing.
+ * anchor; the translated line appears underneath as soon as its batch lands.
+ * Rendering is rAF-driven while playing. Honors display mode (bilingual /
+ * source / target) and placement (over the video, or docked below it).
  */
 export class CaptionOverlay {
   private root: HTMLDivElement
@@ -15,11 +16,12 @@ export class CaptionOverlay {
   private lastIndex = -2
   private raf = 0
   private visible = true
+  private isBelow = false
   private disposed = false
 
   constructor(
     private video: HTMLVideoElement,
-    container: HTMLElement,
+    private container: HTMLElement,
     private display: Settings['display'],
   ) {
     this.root = document.createElement('div')
@@ -29,14 +31,13 @@ export class CaptionOverlay {
     this.tgtEl = document.createElement('div')
     this.tgtEl.className = 'acap-line acap-line-tgt'
     this.applyDisplay(display)
-    container.appendChild(this.root)
 
     this.video.addEventListener('timeupdate', this.onTick)
     this.video.addEventListener('seeked', this.onTick)
     this.video.addEventListener('play', this.startLoop)
     this.video.addEventListener('pause', this.stopLoop)
     if (!video.paused) this.startLoop()
-    this.observeResize(container)
+    this.observeResize()
   }
 
   setCues(cues: Cue[]): void {
@@ -67,7 +68,20 @@ export class CaptionOverlay {
     this.display = display
     this.root.style.setProperty('--acap-bg-alpha', String(display.bgOpacity))
     this.root.style.setProperty('--acap-font-scale', String(display.fontScale))
-    this.root.replaceChildren(...(display.srcFirst ? [this.srcEl, this.tgtEl] : [this.tgtEl, this.srcEl]))
+
+    // Re-mount if placement changed: 'overlay' sits absolutely inside the
+    // player; 'below' is a normal-flow block directly under it.
+    const below = display.placement === 'below'
+    if (below !== this.isBelow || !this.root.isConnected) {
+      this.isBelow = below
+      this.root.classList.toggle('acap-overlay-below', below)
+      if (below) this.container.insertAdjacentElement('afterend', this.root)
+      else this.container.appendChild(this.root)
+    }
+
+    // Line order + which lines participate (mode).
+    const order = display.srcFirst ? [this.srcEl, this.tgtEl] : [this.tgtEl, this.srcEl]
+    this.root.replaceChildren(...order)
     this.lastIndex = -2
     this.onTick()
   }
@@ -106,29 +120,37 @@ export class CaptionOverlay {
     if (idx === this.lastIndex) return
     this.lastIndex = idx
     if (idx === -1) {
-      this.srcEl.textContent = ''
-      this.tgtEl.textContent = ''
-      this.root.classList.remove('acap-overlay-active')
+      this.render('', '')
       return
     }
     const cue = this.cues[idx]!
-    this.srcEl.textContent = cue.src
-    this.tgtEl.textContent = cue.tgt ?? ''
-    this.tgtEl.style.display = cue.tgt ? '' : 'none'
-    this.root.classList.add('acap-overlay-active')
+    this.render(cue.src, cue.tgt ?? '')
   }
 
-  private observeResize(container: HTMLElement): void {
+  private render(src: string, tgt: string): void {
+    const mode = this.display.mode
+    // source-only and target-only collapse to a single line; target falls back
+    // to the original when its translation hasn't landed yet.
+    const showSrc = mode !== 'target'
+    const showTgt = mode !== 'source'
+    this.srcEl.textContent = showSrc ? src : ''
+    this.tgtEl.textContent = showTgt ? (mode === 'target' ? tgt || src : tgt) : ''
+    this.srcEl.style.display = this.srcEl.textContent ? '' : 'none'
+    this.tgtEl.style.display = this.tgtEl.textContent ? '' : 'none'
+    const any = Boolean(this.srcEl.textContent || this.tgtEl.textContent)
+    this.root.classList.toggle('acap-overlay-active', any)
+  }
+
+  private observeResize(): void {
     const apply = (w: number): void => {
-      // Base size tracks player width; user scale multiplies on top.
-      const base = Math.min(26, Math.max(13, w * 0.032))
+      const base = Math.min(22, Math.max(12, w * 0.028))
       this.root.style.setProperty('--acap-font-base', `${base}px`)
     }
-    apply(container.clientWidth || 600)
+    apply(this.container.clientWidth || 600)
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width
       if (w) apply(w)
     })
-    ro.observe(container)
+    ro.observe(this.container)
   }
 }

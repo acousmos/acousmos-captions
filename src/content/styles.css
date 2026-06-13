@@ -84,7 +84,7 @@
   left: 50%;
   bottom: 6%;
   transform: translateX(-50%);
-  max-width: 92%;
+  max-width: 96%;
   z-index: 2147483599;
   display: flex;
   flex-direction: column;
@@ -92,9 +92,24 @@
   gap: 2px;
   pointer-events: none;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --acap-font-base: 18px;
-  --acap-font-scale: 1;
+  --acap-font-base: 16px;
+  --acap-font-scale: 0.85;
   --acap-bg-alpha: 0.55;
+}
+
+/* Docked below the player, in normal flow — never covers the video. */
+.acap-overlay-below {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  margin-top: 2px;
+  background: rgba(8, 12, 16, 0.92);
+  border-radius: 8px;
 }
 
 .acap-line {
