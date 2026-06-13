@@ -12,6 +12,8 @@ export class CaptionOverlay {
   private root: HTMLDivElement
   private srcEl: HTMLDivElement
   private tgtEl: HTMLDivElement
+  private srcSpan: HTMLSpanElement
+  private tgtSpan: HTMLSpanElement
   private cues: Cue[] = []
   private lastIndex = -2
   private raf = 0
@@ -26,10 +28,19 @@ export class CaptionOverlay {
   ) {
     this.root = document.createElement('div')
     this.root.className = 'acap-overlay'
+    // Each line is a centered block row; the inner span carries the background
+    // so it hugs each wrapped visual line (box-decoration-break: clone) rather
+    // than one wide box behind balanced text.
     this.srcEl = document.createElement('div')
     this.srcEl.className = 'acap-line acap-line-src'
+    this.srcSpan = document.createElement('span')
+    this.srcSpan.className = 'acap-text'
+    this.srcEl.appendChild(this.srcSpan)
     this.tgtEl = document.createElement('div')
     this.tgtEl.className = 'acap-line acap-line-tgt'
+    this.tgtSpan = document.createElement('span')
+    this.tgtSpan.className = 'acap-text'
+    this.tgtEl.appendChild(this.tgtSpan)
     this.container.appendChild(this.root)
     this.applyDisplay(display)
 
@@ -68,7 +79,8 @@ export class CaptionOverlay {
   applyDisplay(display: Settings['display']): void {
     this.display = display
     this.root.style.setProperty('--acap-bg-alpha', String(display.bgOpacity))
-    this.root.style.setProperty('--acap-font-scale', String(display.fontScale))
+    this.root.style.setProperty('--acap-src-scale', String(display.srcScale))
+    this.root.style.setProperty('--acap-tgt-scale', String(display.tgtScale))
     if (!this.root.isConnected) this.container.appendChild(this.root)
 
     // Line order + which lines participate (mode).
@@ -126,13 +138,13 @@ export class CaptionOverlay {
     // to the original when its translation hasn't landed yet.
     const showSrc = mode !== 'target'
     const showTgt = mode !== 'source'
-    this.srcEl.textContent = showSrc ? src : ''
-    this.tgtEl.textContent = showTgt ? (mode === 'target' ? tgt || src : tgt) : ''
-    this.srcEl.style.display = this.srcEl.textContent ? '' : 'none'
-    this.tgtEl.style.display = this.tgtEl.textContent ? '' : 'none'
-    const any = Boolean(this.srcEl.textContent || this.tgtEl.textContent)
+    this.srcSpan.textContent = showSrc ? src : ''
+    this.tgtSpan.textContent = showTgt ? (mode === 'target' ? tgt || src : tgt) : ''
+    this.srcEl.style.display = this.srcSpan.textContent ? '' : 'none'
+    this.tgtEl.style.display = this.tgtSpan.textContent ? '' : 'none'
+    const any = Boolean(this.srcSpan.textContent || this.tgtSpan.textContent)
     this.root.classList.toggle('acap-overlay-active', any)
-    this.applyFit(this.srcEl.textContent ?? '', this.tgtEl.textContent ?? '')
+    this.applyFit(this.srcSpan.textContent ?? '', this.tgtSpan.textContent ?? '')
   }
 
   /**
@@ -144,14 +156,16 @@ export class CaptionOverlay {
   private applyFit(src: string, tgt: string): void {
     const basePx =
       parseFloat(getComputedStyle(this.root).getPropertyValue('--acap-font-base')) || 16
-    const unitsPerLine = Math.max(8, this.containerWidth / (basePx * this.display.fontScale))
     // CJK glyphs are ~1 unit wide, Latin ~0.55.
     const lineUnits = (s: string): number => {
       let u = 0
       for (const c of s) u += /[⺀-鿿＀-￯　-〿]/.test(c) ? 1 : 0.55
       return u
     }
-    const worstLines = Math.max(lineUnits(src) * 0.82, lineUnits(tgt)) / unitsPerLine
+    // Lines wrap at each language's own size, so estimate per-line independently.
+    const linesAt = (s: string, scale: number): number =>
+      lineUnits(s) / Math.max(8, this.containerWidth / (basePx * scale))
+    const worstLines = Math.max(linesAt(src, this.display.srcScale), linesAt(tgt, this.display.tgtScale))
     const fit = worstLines > 2 ? Math.max(0.7, 2 / worstLines) : 1
     this.root.style.setProperty('--acap-fit-scale', fit.toFixed(3))
   }

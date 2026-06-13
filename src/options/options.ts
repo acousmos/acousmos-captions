@@ -36,7 +36,8 @@ const els = {
   targetLang: $<HTMLSelectElement>('target-lang'),
   mode: $<HTMLSelectElement>('mode'),
   order: $<HTMLSelectElement>('order'),
-  fontScale: $<HTMLInputElement>('font-scale'),
+  srcScale: $<HTMLInputElement>('src-scale'),
+  tgtScale: $<HTMLInputElement>('tgt-scale'),
   bgOpacity: $<HTMLInputElement>('bg-opacity'),
   status: $('status'),
 }
@@ -57,7 +58,8 @@ void loadSettings().then((s) => {
   els.targetLang.value = s.llm.targetLang
   els.mode.value = s.display.mode
   els.order.value = s.display.srcFirst ? 'src' : 'tgt'
-  els.fontScale.value = String(s.display.fontScale)
+  els.srcScale.value = String(s.display.srcScale)
+  els.tgtScale.value = String(s.display.tgtScale)
   els.bgOpacity.value = String(s.display.bgOpacity)
   syncVisibility()
   syncRangeLabels()
@@ -88,7 +90,8 @@ function collect(): Settings {
       enabled: settings.display.enabled,
       mode: els.mode.value as Settings['display']['mode'],
       srcFirst: els.order.value === 'src',
-      fontScale: Number(els.fontScale.value),
+      srcScale: Number(els.srcScale.value),
+      tgtScale: Number(els.tgtScale.value),
       bgOpacity: Number(els.bgOpacity.value),
     },
   }
@@ -118,7 +121,8 @@ function syncVisibility(): void {
 }
 
 function syncRangeLabels(): void {
-  $('font-scale-val').textContent = `${Math.round(Number(els.fontScale.value) * 100)}%`
+  $('src-scale-val').textContent = `${Math.round(Number(els.srcScale.value) * 100)}%`
+  $('tgt-scale-val').textContent = `${Math.round(Number(els.tgtScale.value) * 100)}%`
   $('bg-opacity-val').textContent = `${Math.round(Number(els.bgOpacity.value) * 100)}%`
 }
 

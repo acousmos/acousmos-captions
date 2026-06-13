@@ -16,6 +16,7 @@
   "menu_export_source": { "message": "导出 SRT(原文)" },
   "menu_export_target": { "message": "导出 SRT(译文)" },
   "menu_retranslate": { "message": "重新生成(忽略缓存)" },
+  "menu_force_asr": { "message": "重新识别(忽略自带字幕)" },
   "menu_settings": { "message": "设置…" },
 
   "toast_gif": { "message": "这是 GIF 动图,没有音频可转写。" },
@@ -63,7 +64,8 @@
   "opt_lang_auto": { "message": "自动检测" },
   "opt_custom_terms": { "message": "自定义术语" },
   "opt_custom_terms_ph": { "message": "需要准确识别的名称/术语,如 产品名、人名(逗号或换行分隔)" },
-  "opt_font_scale": { "message": "字号" },
+  "opt_src_size": { "message": "原文字号" },
+  "opt_tgt_size": { "message": "译文字号" },
   "opt_bg_opacity": { "message": "背景不透明度" },
   "opt_mode": { "message": "字幕内容" },
   "opt_mode_bilingual": { "message": "双语(原文+译文)" },

@@ -15,6 +15,7 @@ export class PlayerController {
   private root: HTMLDivElement
   private pill: HTMLButtonElement
   private menu: HTMLDivElement | null = null
+  private menuCloseHandler: ((e: MouseEvent) => void) | null = null
   private overlay: CaptionOverlay | null = null
   private port: chrome.runtime.Port | null = null
   private state: State = 'idle'
@@ -140,23 +141,26 @@ export class PlayerController {
     this.start(false)
   }
 
-  private start(force: boolean): void {
+  private start(force: boolean, forceAsr = false): void {
     // Neutral label until the background reports a phase — the source (native
     // captions vs ASR) isn't known yet, so don't claim "fetching audio".
     this.setPill('pill_working', 'working')
     this.closeMenu()
     this.port?.disconnect()
-    void this.beginJob(force)
+    void this.beginJob(force, forceAsr)
   }
 
-  private async beginJob(force: boolean): Promise<void> {
+  private async beginJob(force: boolean, forceAsr: boolean): Promise<void> {
     // Reuse the video's own subtitle track when it has one — accurate, free,
-    // already timed — and only fall back to ASR otherwise.
+    // already timed — and only fall back to ASR otherwise. forceAsr skips this
+    // (menu escape hatch for when the native captions are poor).
     let nativeUtterances: Utterance[] | undefined
-    try {
-      nativeUtterances = (await getNativeUtterances(this.video, this.settings.asr.sourceLang)) ?? undefined
-    } catch {
-      // ignore — fall back to ASR
+    if (!forceAsr) {
+      try {
+        nativeUtterances = (await getNativeUtterances(this.video, this.settings.asr.sourceLang)) ?? undefined
+      } catch {
+        // ignore — fall back to ASR
+      }
     }
     if (this.disposed) return
     const port = chrome.runtime.connect({ name: `${JOB_PORT_PREFIX}${this.mediaId}` })
@@ -310,7 +314,10 @@ export class PlayerController {
     menu.appendChild(this.menuItem(t('menu_export_bilingual'), () => downloadSrt(this.cues, 'bilingual', this.mediaId, lang)))
     menu.appendChild(this.menuItem(t('menu_export_source'), () => downloadSrt(this.cues, 'source', this.mediaId, lang)))
     menu.appendChild(this.menuItem(t('menu_export_target'), () => downloadSrt(this.cues, 'target', this.mediaId, lang)))
+    menu.appendChild(this.menuSep())
     menu.appendChild(this.menuItem(t('menu_retranslate'), () => this.start(true)))
+    // Escape hatch when the video's own captions are poor: force ASR.
+    menu.appendChild(this.menuItem(t('menu_force_asr'), () => this.start(true, true)))
     menu.appendChild(
       this.menuItem(t('menu_settings'), () => {
         void chrome.runtime.sendMessage({ kind: 'options/open' }).catch(() => undefined)
@@ -320,11 +327,19 @@ export class PlayerController {
     this.root.appendChild(menu)
     this.menu = menu
     this.positionMenu(menu)
-    setTimeout(() => {
-      const close = (e: MouseEvent): void => {
-        if (!menu.contains(e.target as Node)) this.closeMenu()
+    // Close on any click outside the menu. If that click is on our own pill,
+    // swallow it so onPillClick doesn't immediately reopen — second click on
+    // the pill toggles the menu shut.
+    this.menuCloseHandler = (e: MouseEvent): void => {
+      if (menu.contains(e.target as Node)) return
+      this.closeMenu()
+      if (this.root.contains(e.target as Node)) {
+        e.stopPropagation()
+        e.preventDefault()
       }
-      document.addEventListener('click', close, { once: true, capture: true })
+    }
+    setTimeout(() => {
+      if (this.menuCloseHandler) document.addEventListener('click', this.menuCloseHandler, true)
     }, 0)
   }
 
@@ -381,6 +396,10 @@ export class PlayerController {
   }
 
   private closeMenu(): void {
+    if (this.menuCloseHandler) {
+      document.removeEventListener('click', this.menuCloseHandler, true)
+      this.menuCloseHandler = null
+    }
     this.menu?.remove()
     this.menu = null
   }

@@ -136,12 +136,20 @@
         </select>
       </div>
       <div class="row">
-        <label data-i18n="opt_font_scale"></label>
-        <input id="font-scale" type="range" min="0.7" max="1.6" step="0.05" />
-        <span id="font-scale-val" class="val"></span>
+        <label data-i18n="opt_src_size"></label>
+        <span class="val val-min">50%</span>
+        <input id="src-scale" type="range" min="0.5" max="1.6" step="0.05" />
+        <span id="src-scale-val" class="val"></span>
+      </div>
+      <div class="row">
+        <label data-i18n="opt_tgt_size"></label>
+        <span class="val val-min">50%</span>
+        <input id="tgt-scale" type="range" min="0.5" max="1.6" step="0.05" />
+        <span id="tgt-scale-val" class="val"></span>
       </div>
       <div class="row">
         <label data-i18n="opt_bg_opacity"></label>
+        <span class="val val-min">0%</span>
         <input id="bg-opacity" type="range" min="0" max="0.9" step="0.05" />
         <span id="bg-opacity-val" class="val"></span>
       </div>

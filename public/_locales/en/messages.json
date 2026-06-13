@@ -16,6 +16,7 @@
   "menu_export_source": { "message": "Export SRT (original)" },
   "menu_export_target": { "message": "Export SRT (translation)" },
   "menu_retranslate": { "message": "Re-run (ignore cache)" },
+  "menu_force_asr": { "message": "Re-transcribe (ignore captions)" },
   "menu_settings": { "message": "Settings…" },
 
   "toast_gif": { "message": "This is an animated GIF — no audio to transcribe." },
@@ -63,7 +64,8 @@
   "opt_lang_auto": { "message": "Auto detect" },
   "opt_custom_terms": { "message": "Custom terms" },
   "opt_custom_terms_ph": { "message": "Names/jargon to recognize, e.g. ProductName, PersonName (comma or newline separated)" },
-  "opt_font_scale": { "message": "Font size" },
+  "opt_src_size": { "message": "Original size" },
+  "opt_tgt_size": { "message": "Translation size" },
   "opt_bg_opacity": { "message": "Background opacity" },
   "opt_mode": { "message": "Captions" },
   "opt_mode_bilingual": { "message": "Bilingual (original + translation)" },

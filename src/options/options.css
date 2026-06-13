@@ -68,6 +68,9 @@ input:focus, select:focus { border-color: var(--accent); }
 
 input[type="range"] { flex: 1; accent-color: var(--accent); }
 .val { width: 48px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Range start, shown left of the slider so the right value reads as "current",
+   not a total. */
+.val-min { width: 36px; text-align: right; opacity: 0.55; }
 
 .keyline { flex: 1; display: flex; gap: 8px; }
 .keyline input { flex: 1; }

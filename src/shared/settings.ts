@@ -24,8 +24,9 @@ export interface Settings {
     /** Which lines to render. */
     mode: 'bilingual' | 'source' | 'target'
     srcFirst: boolean
-    /** Multiplier applied to the player-width-derived base size. */
-    fontScale: number
+    /** Per-language size multipliers on the player-width-derived base size. */
+    srcScale: number
+    tgtScale: number
     /** 0..1 */
     bgOpacity: number
   }
@@ -52,7 +53,8 @@ export const DEFAULT_SETTINGS: Settings = {
     enabled: true,
     mode: 'bilingual',
     srcFirst: true,
-    fontScale: 0.85,
+    srcScale: 0.7,
+    tgtScale: 0.85,
     bgOpacity: 0.55,
   },
 }
