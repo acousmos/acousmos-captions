@@ -17,7 +17,7 @@ export const openaiCompat: TranslateProvider = {
     items: BatchItem[],
     ctx: TranslateContext,
     opts: TranslateOptions,
-  ): Promise<Map<number, string>> {
+  ): Promise<BatchItem[]> {
     const base = normalizeBase(opts.baseUrl)
     const res = await fetchRetry(
       `${base}/chat/completions`,
@@ -41,7 +41,7 @@ export const openaiCompat: TranslateProvider = {
     if (!res.ok) throw new JobError('err_llm_failed', `LLM HTTP ${res.status}: ${await readErrorBody(res)}`)
     const data = (await res.json()) as ChatResponse
     const text = data.choices?.[0]?.message?.content ?? ''
-    return new Map(extractItems(text).map((e) => [e.i, e.t]))
+    return extractItems(text)
   },
 
   async testKey(key: string, opts: { baseUrl?: string }): Promise<boolean> {

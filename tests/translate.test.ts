@@ -20,6 +20,12 @@ describe('extractItems', () => {
     expect(extractItems('[{"i":2,"t":"测试"}]')).toEqual([{ i: 2, t: '测试' }])
   })
 
+  it('captures the echoed source when present', () => {
+    expect(extractItems('{"items":[{"i":0,"s":"hello","t":"你好"}]}')).toEqual([
+      { i: 0, t: '你好', src: 'hello' },
+    ])
+  })
+
   it('drops malformed entries but keeps valid ones', () => {
     expect(extractItems('{"items":[{"i":0,"t":"ok"},{"i":"x","t":1},{"t":"no id"}]}')).toEqual([
       { i: 0, t: 'ok' },
@@ -45,10 +51,18 @@ const cues: Cue[] = Array.from({ length: 5 }, (_, id) => ({
 
 const baseOpts = { key: 'k', model: 'm', targetLang: 'zh-CN' }
 
+/** Faithful reply: one item per id, in order, echoing the source back. */
+const faithful: TranslateProvider['translateBatch'] = async (items) =>
+  items.map((it) => ({ i: it.i, src: it.t, t: `译${it.i}` }))
+
 describe('translateCues', () => {
-  it('translates all cues and reports batches via onBatch', async () => {
+  it('trusts a faithful batch (ids + source echoed) and reports batches via onBatch', async () => {
     const events: number[][] = []
-    const provider = fakeProvider(async (items) => new Map(items.map((it) => [it.i, `译${it.i}`])))
+    let calls = 0
+    const provider = fakeProvider(async (items) => {
+      calls++
+      return items.map((it) => ({ i: it.i, src: it.t, t: `译${it.i}` }))
+    })
     const result = await translateCues(cues, provider, {
       ...baseOpts,
       batchSize: 2,
@@ -57,38 +71,73 @@ describe('translateCues', () => {
     expect(result.size).toBe(5)
     expect(result.get(4)).toBe('译4')
     expect(events).toEqual([[0, 1], [2, 3], [4]])
+    expect(calls).toBe(3) // one call per batch — trusted, no bisection
   })
 
-  it('retries missing ids individually', async () => {
+  it('catches a same-count reply that echoes ids correctly but shifts the translations', async () => {
+    // The proven hole: the model numbers its slots right (ids in order, non-empty)
+    // but each translation — and the source it echoes — belongs to the NEXT line.
+    // The source-echo check rejects it; bisection then re-pairs every cue.
+    const shifted: TranslateProvider['translateBatch'] = async (items) => {
+      if (items.length === 1) return [{ i: items[0]!.i, src: items[0]!.t, t: `译${items[0]!.i}` }]
+      const n = items.length
+      return items.map((it, k) => ({ i: it.i, src: items[(k + 1) % n]!.t, t: `译${items[(k + 1) % n]!.i}` }))
+    }
+    const result = await translateCues(cues, fakeProvider(shifted), { ...baseOpts, batchSize: 5 })
+    expect(result.size).toBe(5)
+    for (const c of cues) expect(result.get(c.id)).toBe(`译${c.id}`) // each id ↦ its OWN translation
+  })
+
+  it('recovers when the model merges a split sentence (returns fewer, shifted lines)', async () => {
+    const merging: TranslateProvider['translateBatch'] = async (items) => {
+      if (items.length === 1) return [{ i: items[0]!.i, src: items[0]!.t, t: `译${items[0]!.i}` }]
+      // drop the last, shift the rest: id[k] gets line[k+1]'s source+translation
+      return items.slice(1).map((it, k) => ({ i: items[k]!.i, src: it.t, t: `译${it.i}` }))
+    }
+    const result = await translateCues(cues, fakeProvider(merging), { ...baseOpts, batchSize: 5 })
+    expect(result.size).toBe(5)
+    for (const c of cues) expect(result.get(c.id)).toBe(`译${c.id}`)
+  })
+
+  it('stays aligned even when the model never echoes the source (degrades to per-line)', async () => {
+    // No source echo at all → a multi-line batch can never be verified, so it is
+    // bisected to single cues, which are aligned by construction.
+    const noSrc: TranslateProvider['translateBatch'] = async (items) =>
+      items.map((it) => ({ i: it.i, t: `译${it.i}` }))
+    const result = await translateCues(cues, fakeProvider(noSrc), { ...baseOpts, batchSize: 5 })
+    expect(result.size).toBe(5)
+    for (const c of cues) expect(result.get(c.id)).toBe(`译${c.id}`)
+  })
+
+  it('tolerates whitespace/case differences in the echoed source', async () => {
     let calls = 0
     const provider = fakeProvider(async (items) => {
       calls++
-      if (calls === 1) {
-        // First batch call "forgets" id 1.
-        return new Map(items.filter((it) => it.i !== 1).map((it) => [it.i, `译${it.i}`]))
-      }
-      return new Map(items.map((it) => [it.i, `译${it.i}`]))
+      // cosmetic-only differences: padded + upper-cased source echo
+      return items.map((it) => ({ i: it.i, src: `  ${it.t.toUpperCase()}  `, t: `译${it.i}` }))
     })
     const result = await translateCues(cues.slice(0, 3), provider, { ...baseOpts, batchSize: 3 })
-    expect(result.get(1)).toBe('译1')
     expect(result.size).toBe(3)
-    expect(calls).toBe(2) // one batch + one single retry
+    expect(calls).toBe(1) // trusted despite the cosmetic source differences — no bisection
   })
 
-  it('leaves cues untranslated when retries also fail (no throw)', async () => {
+  it('leaves a cue untranslated when its line never comes back (no throw)', async () => {
+    // id 2 is dropped from every reply (multi and single) — it must end up
+    // untranslated, and must not steal another line's translation.
     const provider = fakeProvider(async (items) =>
-      new Map(items.filter((it) => it.i !== 2).map((it) => [it.i, `译${it.i}`])),
+      items.filter((it) => it.i !== 2).map((it) => ({ i: it.i, src: it.t, t: `译${it.i}` })),
     )
     const result = await translateCues(cues.slice(0, 3), provider, { ...baseOpts, batchSize: 3 })
     expect(result.has(2)).toBe(false)
-    expect(result.size).toBe(2)
+    expect(result.get(0)).toBe('译0')
+    expect(result.get(1)).toBe('译1')
   })
 
   it('never sends timestamps to the provider', async () => {
     let sawKeys: string[] = []
     const provider = fakeProvider(async (items) => {
       sawKeys = Object.keys(items[0]!)
-      return new Map(items.map((it) => [it.i, 'x']))
+      return items.map((it) => ({ i: it.i, src: it.t, t: 'x' }))
     })
     await translateCues(cues.slice(0, 1), provider, baseOpts)
     expect(sawKeys.sort()).toEqual(['i', 't'])

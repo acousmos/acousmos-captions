@@ -4,6 +4,13 @@ import type { LlmProviderId } from '../../shared/types'
 export interface BatchItem {
   i: number
   t: string
+  /**
+   * On a model REPLY only: the source line the model claims it translated,
+   * copied back verbatim. The caller compares it to the real source to confirm
+   * the translation is on the right line (id echo alone can't catch a reply that
+   * numbers its slots correctly but mis-assigns the translations). Unset on input.
+   */
+  src?: string
 }
 
 export interface TranslateContext {
@@ -25,9 +32,11 @@ export interface TranslateOptions {
 export interface TranslateProvider {
   readonly id: LlmProviderId
   /**
-   * Translate one batch. Must return results keyed by the input ids.
+   * Translate one batch and return the model's items in REPLY ORDER (not keyed).
+   * The caller validates the id echo and decides how to map them — a model that
+   * merges or renumbers lines must not be allowed to silently shift the mapping.
    * Implementations never see or touch timestamps.
    */
-  translateBatch(items: BatchItem[], ctx: TranslateContext, opts: TranslateOptions): Promise<Map<number, string>>
+  translateBatch(items: BatchItem[], ctx: TranslateContext, opts: TranslateOptions): Promise<BatchItem[]>
   testKey(key: string, opts: { model: string; baseUrl?: string }): Promise<boolean>
 }

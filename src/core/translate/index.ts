@@ -1,7 +1,7 @@
 import type { Cue, LlmProviderId } from '../../shared/types'
 import { anthropic } from './anthropic'
 import { openaiCompat } from './openai'
-import type { BatchItem, TranslateOptions, TranslateProvider } from './types'
+import type { BatchItem, TranslateContext, TranslateOptions, TranslateProvider } from './types'
 
 const providers: Record<LlmProviderId, TranslateProvider> = {
   openai: openaiCompat,
@@ -27,8 +27,16 @@ const CONTEXT_LINES = 2
 /**
  * Translate all cues batch-by-batch. Timestamps are never sent to the LLM —
  * only (id, text) pairs — so the timeline cannot be disturbed by translation.
- * Ids missing from a batch response are retried once individually; cues that
- * still fail keep `tgt` unset (the UI falls back to the original line).
+ *
+ * Alignment is the hard part. A model that merges two split-sentence fragments,
+ * drops a line, renumbers, or simply numbers its output slots correctly while
+ * mis-assigning the translations would silently shift later lines onto the wrong
+ * cue id. Echoing the ids back is not enough to catch the last case, so each
+ * reply must also echo every SOURCE line back unchanged; a batch is trusted only
+ * when ids AND sources line up. Any mismatch makes us split the batch and recurse
+ * down to single cues, where there is exactly one possible source and the mapping
+ * cannot be wrong. Cues that still fail to translate keep `tgt` unset (the UI
+ * falls back to the original line).
  */
 export async function translateCues(
   cues: readonly Cue[],
@@ -37,41 +45,18 @@ export async function translateCues(
 ): Promise<Map<number, string>> {
   const out = new Map<number, string>()
   const size = opts.batchSize ?? BATCH_SIZE
-  const batches: BatchItem[][] = []
-  for (let i = 0; i < cues.length; i += size) {
-    batches.push(cues.slice(i, i + size).map((c) => ({ i: c.id, t: c.src })))
-  }
+  const all: BatchItem[] = cues.map((c) => ({ i: c.id, t: c.src }))
 
-  for (let b = 0; b < batches.length; b++) {
-    const items = batches[b]!
-    const prevSource = b > 0 ? batches[b - 1]!.slice(-CONTEXT_LINES).map((x) => x.t) : []
-    const ctx = { targetLang: opts.targetLang, prevSource, glossary: opts.glossary }
-
-    let result: Map<number, string>
-    try {
-      result = await provider.translateBatch(items, ctx, opts)
-    } catch (e) {
-      if (opts.signal?.aborted) throw e
-      result = new Map()
-      // Whole-batch failure: fall through to per-item retry below.
-    }
-
-    const missing = items.filter((it) => !result.get(it.i))
-    for (const it of missing) {
-      if (opts.signal?.aborted) break
-      try {
-        const single = await provider.translateBatch([it], ctx, opts)
-        const t = single.get(it.i)
-        if (t) result.set(it.i, t)
-      } catch {
-        // leave untranslated; UI shows the original line
-      }
-    }
+  for (let start = 0; start < all.length; start += size) {
+    if (opts.signal?.aborted) break
+    const batch = all.slice(start, start + size)
+    const prevSource = all.slice(Math.max(0, start - CONTEXT_LINES), start).map((x) => x.t)
+    const map = await translateChunk(batch, prevSource, provider, opts)
 
     const ids: number[] = []
     const texts: string[] = []
-    for (const it of items) {
-      const t = result.get(it.i)
+    for (const it of batch) {
+      const t = map.get(it.i)
       if (t) {
         out.set(it.i, t)
         ids.push(it.i)
@@ -81,6 +66,68 @@ export async function translateCues(
     if (ids.length > 0) opts.onBatch?.(ids, texts)
   }
   return out
+}
+
+/**
+ * Translate one chunk and return an id→text map. Trusts the reply only when the
+ * model echoes both the ids and the source lines back intact; otherwise splits
+ * the chunk and recurses (a single cue is unambiguous regardless of what the
+ * model echoes for it).
+ */
+async function translateChunk(
+  batch: BatchItem[],
+  prevSource: string[],
+  provider: TranslateProvider,
+  opts: TranslateRunOptions,
+): Promise<Map<number, string>> {
+  if (batch.length === 0) return new Map()
+  const ctx: TranslateContext = { targetLang: opts.targetLang, prevSource, glossary: opts.glossary }
+
+  let parsed: BatchItem[]
+  try {
+    parsed = await provider.translateBatch(batch, ctx, opts)
+  } catch (e) {
+    if (opts.signal?.aborted) throw e
+    parsed = [] // treat as a non-echo: recurse / give up below
+  }
+
+  // (a) ids echoed exactly, in order, with non-empty translations, AND
+  // (b) every source echoed back unchanged — only then is each translation
+  // provably anchored to its own line.
+  const idsEcho =
+    parsed.length === batch.length && batch.every((it, k) => parsed[k]!.i === it.i && parsed[k]!.t.length > 0)
+  const srcEcho = idsEcho && batch.every((it, k) => normalizeSrc(parsed[k]!.src ?? '') === normalizeSrc(it.t))
+  if (srcEcho) {
+    return new Map(batch.map((it, k) => [it.i, parsed[k]!.t]))
+  }
+
+  if (batch.length === 1) {
+    // One source line in → its translation is unambiguous, whatever id or source
+    // the model echoed (there is only one slot it could belong to). Empty → leave
+    // it untranslated and let the UI fall back to the original line.
+    const t = parsed.find((p) => p.t.length > 0)?.t
+    return t ? new Map([[batch[0]!.i, t]]) : new Map()
+  }
+  if (opts.signal?.aborted) return new Map()
+
+  // Untrusted reply: split and recurse. The right half's continuity context is
+  // the tail of the left half's source lines.
+  const mid = Math.ceil(batch.length / 2)
+  const left = batch.slice(0, mid)
+  const right = batch.slice(mid)
+  const leftMap = await translateChunk(left, prevSource, provider, opts)
+  const rightPrev = left.slice(-CONTEXT_LINES).map((x) => x.t)
+  const rightMap = await translateChunk(right, rightPrev, provider, opts)
+  return new Map([...leftMap, ...rightMap])
+}
+
+/**
+ * Compare a model's echoed source to the real source leniently — robust to
+ * whitespace/case/Unicode-form differences (which don't change meaning) but not
+ * to a genuinely different line (which signals the translation was misrouted).
+ */
+function normalizeSrc(s: string): string {
+  return s.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
 export type { BatchItem, TranslateContext, TranslateOptions, TranslateProvider } from './types'

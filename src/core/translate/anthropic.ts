@@ -22,7 +22,7 @@ export const anthropic: TranslateProvider = {
     items: BatchItem[],
     ctx: TranslateContext,
     opts: TranslateOptions,
-  ): Promise<Map<number, string>> {
+  ): Promise<BatchItem[]> {
     const body: Record<string, unknown> = {
       model: opts.model,
       max_tokens: 8192,
@@ -41,7 +41,7 @@ export const anthropic: TranslateProvider = {
     if (!res.ok) throw new JobError('err_llm_failed', `Anthropic HTTP ${res.status}: ${await readErrorBody(res)}`)
     const data = (await res.json()) as MessagesResponse
     const text = data.content?.filter((b) => b.type === 'text').map((b) => b.text ?? '').join('') ?? ''
-    return new Map(extractItems(text).map((e) => [e.i, e.t]))
+    return extractItems(text)
   },
 
   async testKey(key: string): Promise<boolean> {

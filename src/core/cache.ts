@@ -5,8 +5,10 @@ import type { CaptionResult } from '../shared/types'
  * (or reopening the tab) must not re-pay ASR + translation.
  */
 
-const PREFIX = 'cap:v1:'
-const INDEX_KEY = 'cap:index:v1'
+// v2: bumped with the translation-alignment fix so results cached by the older
+// pipeline (which could shift a translation onto the next cue) are not served.
+const PREFIX = 'cap:v2:'
+const INDEX_KEY = 'cap:index:v2'
 const MAX_ENTRIES = 60
 
 type CacheIndex = Record<string, number> // key -> lastUsed epoch ms
