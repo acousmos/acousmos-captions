@@ -7,7 +7,12 @@ provider integration is plain `fetch`. Part of the Acousmos product family
 
 ## Commands
 
-- `pnpm dev` — watch build to `dist/`
+- `pnpm dev` — watch build to `dist/` with hot reload: a local WebSocket
+  server (127.0.0.1:35729) tells the service worker to `chrome.runtime.reload()`
+  on every rebuild, so no manual `chrome://extensions` reload is needed (load
+  the dev build once, then refresh the page after changes). Dev builds embed the
+  reload client and a localhost host permission — **never ship a `pnpm dev`
+  build; package releases with `pnpm build` (production strips both).**
 - `pnpm build` — production build to `dist/`
 - `pnpm test` — unit tests (vitest)
 - `pnpm typecheck` — `tsc --noEmit`

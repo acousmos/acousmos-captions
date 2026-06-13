@@ -3,7 +3,7 @@
   "name": "__MSG_extName__",
   "short_name": "Acousmos Captions",
   "description": "__MSG_extDesc__",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "default_locale": "en",
   "minimum_chrome_version": "120",
   "icons": {
