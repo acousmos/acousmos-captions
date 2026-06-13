@@ -58,6 +58,12 @@ export class PlayerController {
     this.overlay?.applyDisplay(s.display)
   }
 
+  /** Master on/off from the popup: hide the pill and overlay when off. */
+  setEnabled(on: boolean): void {
+    this.root.style.display = on ? '' : 'none'
+    if (this.overlay) this.overlay.setVisible(on && this.captionsOn)
+  }
+
   dispose(): void {
     this.disposed = true
     this.port?.disconnect()

@@ -92,21 +92,25 @@ input[type="range"] { flex: 1; accent-color: var(--accent); }
 
 .foot { display: flex; justify-content: flex-end; color: var(--muted); font-size: 12.5px; min-height: 18px; }
 
-/* Floating status — visible regardless of scroll position. */
+/* Floating status — centered at the bottom so it's hard to miss. */
 #status {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 8px);
   z-index: 10;
-  padding: 10px 18px;
-  border-radius: 10px;
-  font-size: 13.5px;
+  padding: 11px 22px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
   background: #11161d;
   border: 1px solid var(--line);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-#status.ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.5); opacity: 1; }
-#status.fail { color: #f87171; border-color: rgba(248, 113, 113, 0.5); opacity: 1; }
+#status.ok,
+#status.fail { opacity: 1; transform: translate(-50%, 0); }
+#status.ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.55); }
+#status.fail { color: #f87171; border-color: rgba(248, 113, 113, 0.55); }

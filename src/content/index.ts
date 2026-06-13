@@ -27,7 +27,10 @@ void (async () => {
 
 function onSettings(s: Settings): void {
   settings = s
-  for (const c of controllers.values()) c.updateSettings(s)
+  for (const c of controllers.values()) {
+    c.updateSettings(s)
+    c.setEnabled(s.display.enabled) // hide existing captions immediately when toggled off
+  }
   if (s.display.enabled) {
     scan()
     observe()
