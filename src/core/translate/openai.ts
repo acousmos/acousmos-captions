@@ -30,7 +30,7 @@ export const openaiCompat: TranslateProvider = {
         body: JSON.stringify({
           model: opts.model,
           messages: [
-            { role: 'system', content: systemPrompt(ctx.targetLang) },
+            { role: 'system', content: systemPrompt(ctx.targetLang, ctx.glossary) },
             { role: 'user', content: userPrompt(items, ctx) },
           ],
         }),

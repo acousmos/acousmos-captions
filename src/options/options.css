@@ -36,7 +36,22 @@ body {
 
 .row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .row:last-child { margin-bottom: 0; }
+.row.row-top { align-items: flex-start; }
 .row > label { flex: 0 0 170px; color: var(--muted); }
+
+textarea {
+  flex: 1;
+  background: #0d1219;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+textarea:focus { border-color: var(--accent); }
 
 input[type="text"], input[type="password"], select {
   flex: 1;

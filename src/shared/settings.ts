@@ -7,6 +7,8 @@ export interface Settings {
     sonioxKey: string
     /** BCP-47-ish code or 'auto'. */
     sourceLang: string
+    /** User-added glossary terms (comma/newline separated), on top of built-ins. */
+    customTerms: string
   }
   llm: {
     provider: LlmProviderId
@@ -33,6 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
     deepgramKey: '',
     sonioxKey: '',
     sourceLang: 'auto',
+    customTerms: '',
   },
   llm: {
     provider: 'openai',

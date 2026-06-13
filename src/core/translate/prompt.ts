@@ -1,16 +1,19 @@
 import type { BatchItem, TranslateContext } from './types'
 
-export function systemPrompt(targetLang: string): string {
-  return [
+export function systemPrompt(targetLang: string, glossary = ''): string {
+  const lines = [
     `You are a professional subtitle translator. Translate each numbered subtitle segment into ${targetLang}.`,
     'Rules:',
     '- Translate naturally and idiomatically; subtitles are read while watching, so keep lines tight.',
     '- Keep proper nouns, product names, and technical terms recognizable (translate or keep English, whichever a native reader expects).',
     '- Segments are fragments of continuous speech; use the provided context for pronouns and continuity.',
+    '- ASR may mishear technical names; correct obvious mistakes using the glossary below before translating.',
     '- Output JSON only: {"items":[{"i":<id>,"t":"<translation>"}, ...]}.',
     '- Exactly one output item per input id. Never merge, split, reorder, omit, or invent ids.',
     '- No explanations, no markdown fences.',
-  ].join('\n')
+  ]
+  if (glossary) lines.push(`Glossary (canonical spellings of likely terms): ${glossary}`)
+  return lines.join('\n')
 }
 
 export function userPrompt(items: BatchItem[], ctx: TranslateContext): string {

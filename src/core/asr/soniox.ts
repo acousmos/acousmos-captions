@@ -3,7 +3,7 @@ import { fetchRetry, readErrorBody } from '../../shared/net'
 import type { AsrOptions, AsrProvider } from './types'
 
 const API = 'https://api.soniox.com/v1'
-const MODEL = 'stt-async-preview'
+const MODEL = 'stt-async-v5'
 const POLL_INTERVAL_MS = 1500
 const POLL_TIMEOUT_MS = 15 * 60_000
 
@@ -39,6 +39,8 @@ export const soniox: AsrProvider = {
       // 2) Create transcription job.
       const body: Record<string, unknown> = { model: MODEL, file_id: fileId }
       if (opts.sourceLang !== 'auto') body['language_hints'] = [opts.sourceLang]
+      // V5 structured context biases recognition toward glossary terms.
+      if (opts.terms && opts.terms.length > 0) body['context'] = { terms: opts.terms }
       const create = await fetchRetry(
         `${API}/transcriptions`,
         {

@@ -21,8 +21,8 @@
       <div class="row">
         <label data-i18n="opt_provider"></label>
         <select id="asr-provider">
+          <option value="soniox">Soniox (v5)</option>
           <option value="deepgram">Deepgram (nova-3)</option>
-          <option value="soniox">Soniox (stt-async)</option>
         </select>
       </div>
       <div class="row" id="row-deepgram-key">
@@ -53,6 +53,10 @@
           <option value="ru">Русский</option>
           <option value="pt">Português</option>
         </select>
+      </div>
+      <div class="row row-top">
+        <label data-i18n="opt_custom_terms"></label>
+        <textarea id="custom-terms" rows="2" spellcheck="false" data-i18n-ph="opt_custom_terms_ph"></textarea>
       </div>
     </section>
 

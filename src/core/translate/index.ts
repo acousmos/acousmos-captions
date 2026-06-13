@@ -14,6 +14,8 @@ export function getTranslateProvider(id: LlmProviderId): TranslateProvider {
 
 export interface TranslateRunOptions extends TranslateOptions {
   targetLang: string
+  /** Comma-joined glossary of canonical term spellings. */
+  glossary?: string
   batchSize?: number
   /** Called as each batch completes, in completion order. */
   onBatch?: (ids: number[], texts: string[]) => void
@@ -43,7 +45,7 @@ export async function translateCues(
   for (let b = 0; b < batches.length; b++) {
     const items = batches[b]!
     const prevSource = b > 0 ? batches[b - 1]!.slice(-CONTEXT_LINES).map((x) => x.t) : []
-    const ctx = { targetLang: opts.targetLang, prevSource }
+    const ctx = { targetLang: opts.targetLang, prevSource, glossary: opts.glossary }
 
     let result: Map<number, string>
     try {

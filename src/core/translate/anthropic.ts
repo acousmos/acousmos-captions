@@ -26,7 +26,7 @@ export const anthropic: TranslateProvider = {
     const body: Record<string, unknown> = {
       model: opts.model,
       max_tokens: 8192,
-      system: systemPrompt(ctx.targetLang),
+      system: systemPrompt(ctx.targetLang, ctx.glossary),
       messages: [{ role: 'user', content: userPrompt(items, ctx) }],
       // Structured outputs anchor each translation to its cue id.
       output_config: { format: { type: 'json_schema', schema: ITEMS_SCHEMA } },

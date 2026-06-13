@@ -37,6 +37,8 @@ export const deepgram: AsrProvider = {
     })
     if (opts.sourceLang === 'auto') params.set('detect_language', 'true')
     else params.set('language', opts.sourceLang)
+    // Keyterm prompting (nova-3) boosts recognition of glossary terms.
+    for (const term of opts.terms ?? []) params.append('keyterm', term)
 
     const res = await fetchRetry(
       `${API}/listen?${params}`,

@@ -14,6 +14,9 @@ function $<T extends HTMLElement>(id: string): T {
 for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
   el.textContent = t(el.dataset['i18n']!)
 }
+for (const el of document.querySelectorAll<HTMLElement>('[data-i18n-ph]')) {
+  ;(el as HTMLInputElement | HTMLTextAreaElement).placeholder = t(el.dataset['i18nPh']!)
+}
 $('version').textContent = `v${chrome.runtime.getManifest().version}`
 
 let settings: Settings
@@ -23,6 +26,7 @@ const els = {
   deepgramKey: $<HTMLInputElement>('deepgram-key'),
   sonioxKey: $<HTMLInputElement>('soniox-key'),
   sourceLang: $<HTMLSelectElement>('source-lang'),
+  customTerms: $<HTMLTextAreaElement>('custom-terms'),
   llmProvider: $<HTMLSelectElement>('llm-provider'),
   openaiBase: $<HTMLInputElement>('openai-base'),
   openaiModel: $<HTMLInputElement>('openai-model'),
@@ -42,6 +46,7 @@ void loadSettings().then((s) => {
   els.deepgramKey.value = s.asr.deepgramKey
   els.sonioxKey.value = s.asr.sonioxKey
   els.sourceLang.value = s.asr.sourceLang
+  els.customTerms.value = s.asr.customTerms
   els.llmProvider.value = s.llm.provider
   els.openaiBase.value = s.llm.openaiBaseUrl
   els.openaiModel.value = s.llm.openaiModel
@@ -66,6 +71,7 @@ function collect(): Settings {
       deepgramKey: els.deepgramKey.value.trim(),
       sonioxKey: els.sonioxKey.value.trim(),
       sourceLang: els.sourceLang.value,
+      customTerms: els.customTerms.value,
     },
     llm: {
       provider: els.llmProvider.value as Settings['llm']['provider'],

@@ -10,6 +10,8 @@ export interface TranslateContext {
   targetLang: string
   /** Tail of the previously translated source lines, for continuity. */
   prevSource: string[]
+  /** Comma-joined glossary of canonical term spellings. */
+  glossary?: string
 }
 
 export interface TranslateOptions {

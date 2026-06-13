@@ -4,6 +4,8 @@ export interface AsrOptions {
   key: string
   /** 'auto' or a language code like 'en'. */
   sourceLang: string
+  /** Glossary terms to bias recognition (built-in + user custom). */
+  terms?: string[]
   signal?: AbortSignal
   onProgress?: (ratio: number) => void
 }

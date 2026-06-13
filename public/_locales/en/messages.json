@@ -60,6 +60,8 @@
   "opt_target_lang": { "message": "Translate to" },
   "opt_source_lang": { "message": "Audio language" },
   "opt_lang_auto": { "message": "Auto detect" },
+  "opt_custom_terms": { "message": "Custom terms" },
+  "opt_custom_terms_ph": { "message": "Names/jargon to recognize, e.g. ProductName, PersonName (comma or newline separated)" },
   "opt_font_scale": { "message": "Font size" },
   "opt_bg_opacity": { "message": "Background opacity" },
   "opt_order": { "message": "Line order" },

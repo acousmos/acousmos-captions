@@ -1,6 +1,7 @@
 import { getAsrProvider } from '../core/asr'
 import { cacheGet, cachePut } from '../core/cache'
 import { buildCues } from '../core/cues'
+import { glossaryForDeepgram, glossaryForPrompt, glossaryTerms } from '../shared/glossary'
 import { getTranslateProvider, translateCues } from '../core/translate'
 import type { JobEvent, JobRequest } from '../shared/messages'
 import { asrKeyFor, llmKeyFor, loadSettings } from '../shared/settings'
@@ -94,12 +95,18 @@ async function runJob(
   if (!captured) throw new JobError('toast_need_play')
   const audio = await fetchAudio(captured, signal)
 
-  // 2) ASR
+  // 2) ASR — bias recognition toward the glossary (Deepgram caps keyterms
+  // tighter than Soniox's context, so use the trimmed list there).
   setPhase(job, 'transcribing')
   const asr = getAsrProvider(settings.asr.provider)
+  const terms =
+    settings.asr.provider === 'deepgram'
+      ? glossaryForDeepgram(settings.asr.customTerms)
+      : glossaryTerms(settings.asr.customTerms)
   const utterances = await asr.transcribe(audio, {
     key: asrKey,
     sourceLang: settings.asr.sourceLang,
+    terms,
     signal,
   })
   if (utterances.length === 0) throw new JobError('err_no_speech')
@@ -118,6 +125,7 @@ async function runJob(
     model: isOpenAi ? settings.llm.openaiModel : settings.llm.anthropicModel,
     baseUrl: isOpenAi ? settings.llm.openaiBaseUrl : undefined,
     targetLang,
+    glossary: glossaryForPrompt(settings.asr.customTerms),
     signal,
     onBatch: (ids, texts) => {
       for (let k = 0; k < ids.length; k++) {
