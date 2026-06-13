@@ -77,6 +77,16 @@
   background: rgba(125, 211, 252, 0.16);
 }
 
+.acap-menu-active {
+  color: #7dd3fc;
+}
+
+.acap-menu-sep {
+  height: 1px;
+  margin: 5px 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* --- caption overlay --- */
 
 .acap-overlay {

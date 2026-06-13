@@ -1,6 +1,6 @@
 import { mediaIdFromPoster } from '../core/mediaid'
 import { JOB_PORT_PREFIX, type JobEvent, type JobRequest } from '../shared/messages'
-import type { Settings } from '../shared/settings'
+import { loadSettings, saveSettings, type Settings } from '../shared/settings'
 import { t } from '../shared/i18n'
 import type { Cue } from '../shared/types'
 import { downloadSrt } from './exporter'
@@ -217,6 +217,14 @@ export class PlayerController {
     menu.className = 'acap-menu'
     const lang = this.settings.llm.targetLang
 
+    // Quick caption-mode switch (persisted) — the frequently-changed control
+    // belongs here, not buried in Settings.
+    const mode = this.settings.display.mode
+    menu.appendChild(this.menuRadio(t('opt_mode_bilingual'), mode === 'bilingual', () => this.setMode('bilingual')))
+    menu.appendChild(this.menuRadio(t('opt_mode_source'), mode === 'source', () => this.setMode('source')))
+    menu.appendChild(this.menuRadio(t('opt_mode_target'), mode === 'target', () => this.setMode('target')))
+    menu.appendChild(this.menuSep())
+
     menu.appendChild(
       this.menuItem(this.captionsOn ? t('menu_hide') : t('menu_show'), () => {
         this.captionsOn = !this.captionsOn
@@ -241,6 +249,28 @@ export class PlayerController {
       }
       document.addEventListener('click', close, { once: true, capture: true })
     }, 0)
+  }
+
+  /** Change caption mode, apply to this overlay immediately, and persist. */
+  private setMode(mode: Settings['display']['mode']): void {
+    this.settings = { ...this.settings, display: { ...this.settings.display, mode } }
+    this.overlay?.applyDisplay(this.settings.display)
+    void loadSettings().then((s) => {
+      s.display.mode = mode
+      return saveSettings(s)
+    })
+  }
+
+  private menuRadio(label: string, active: boolean, fn: () => void): HTMLButtonElement {
+    const b = this.menuItem(`${active ? '✓ ' : ' '}${label}`, fn)
+    if (active) b.classList.add('acap-menu-active')
+    return b
+  }
+
+  private menuSep(): HTMLDivElement {
+    const d = document.createElement('div')
+    d.className = 'acap-menu-sep'
+    return d
   }
 
   private menuItem(label: string, fn: () => void): HTMLButtonElement {
