@@ -1,4 +1,5 @@
 import { lastCueIndexBefore } from '../core/cues'
+import { t } from '../shared/i18n'
 import type { Settings } from '../shared/settings'
 import type { Cue } from '../shared/types'
 
@@ -19,6 +20,7 @@ export class CaptionOverlay {
   private raf = 0
   private visible = true
   private disposed = false
+  private translating = false
   private containerWidth = 600
   private resizeObserver: ResizeObserver | null = null
 
@@ -64,6 +66,16 @@ export class CaptionOverlay {
       const cue = this.cues[ids[i]!]
       if (cue) cue.tgt = texts[i]!
     }
+    this.lastIndex = -2
+    this.onTick()
+  }
+
+  /** While true, a bilingual cue whose translation hasn't arrived shows a
+   *  "translating…" placeholder instead of a blank line — so an empty Chinese
+   *  row doesn't read as a bug while the LLM is still working. */
+  setTranslating(v: boolean): void {
+    if (this.translating === v) return
+    this.translating = v
     this.lastIndex = -2
     this.onTick()
   }
@@ -141,8 +153,12 @@ export class CaptionOverlay {
     // to the original when its translation hasn't landed yet.
     const showSrc = mode !== 'target'
     const showTgt = mode !== 'source'
+    // Bilingual + source present + translation not yet in + job still running →
+    // show a placeholder so the empty Chinese row reads as "in progress".
+    const pending = showTgt && mode !== 'target' && !tgt && !!src && this.translating
     this.srcSpan.textContent = showSrc ? src : ''
-    this.tgtSpan.textContent = showTgt ? (mode === 'target' ? tgt || src : tgt) : ''
+    this.tgtSpan.textContent = pending ? t('caption_translating') : showTgt ? (mode === 'target' ? tgt || src : tgt) : ''
+    this.tgtSpan.classList.toggle('acap-text-pending', pending)
     this.srcEl.style.display = this.srcSpan.textContent ? '' : 'none'
     this.tgtEl.style.display = this.tgtSpan.textContent ? '' : 'none'
     const any = Boolean(this.srcSpan.textContent || this.tgtSpan.textContent)

@@ -162,6 +162,13 @@
   font-weight: 600;
 }
 
+/* "Translating…" placeholder on the target line while the LLM is still working. */
+.acap-text.acap-text-pending {
+  font-weight: 500;
+  font-style: italic;
+  opacity: 0.7;
+}
+
 /* --- toasts --- */
 
 .acap-toast-host {

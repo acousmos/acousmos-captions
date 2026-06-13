@@ -1,6 +1,6 @@
 import { mediaIdFromPoster } from '../core/mediaid'
 import { JOB_PORT_PREFIX, type JobEvent, type JobRequest } from '../shared/messages'
-import { loadSettings, saveSettings, type Settings } from '../shared/settings'
+import { llmModelFor, loadSettings, saveSettings, type Settings } from '../shared/settings'
 import { t } from '../shared/i18n'
 import type { Cue, Utterance } from '../shared/types'
 import { downloadSrt } from './exporter'
@@ -156,6 +156,13 @@ export class PlayerController {
     this.setPill('pill_working', 'working')
     this.closeMenu()
     this.port?.disconnect()
+    // The translator is known from settings now (job/done only refines fromCache),
+    // so the menu footer can show it immediately rather than after the whole job.
+    this.engine = {
+      provider: this.settings.llm.provider,
+      model: llmModelFor(this.settings),
+      fromCache: false,
+    }
     void this.beginJob(force, forceAsr)
   }
 
@@ -211,7 +218,9 @@ export class PlayerController {
       }
       case 'job/utterances': {
         this.cues = ev.cues
-        this.ensureOverlay().setCues(this.cues)
+        const overlay = this.ensureOverlay()
+        overlay.setTranslating(true) // source is up; mark translations as in-flight
+        overlay.setCues(this.cues)
         // Captions are on screen but more may still be processing; the
         // percentage from job/progress takes over until job/done.
         this.setPillRaw(t('pill_idle'), 'live')
@@ -236,13 +245,16 @@ export class PlayerController {
           `${ev.result.llmProvider}/${ev.result.llmModel}`,
           ev.fromCache ? '(from cache)' : '(fresh run)',
         )
-        this.ensureOverlay().setCues(this.cues)
+        const overlay = this.ensureOverlay()
+        overlay.setTranslating(false) // no more translations coming; drop any "translating…" hint
+        overlay.setCues(this.cues)
         this.setPill('pill_on', 'live')
         // Cached results skip the utterances event, so notify here too.
         this.notifyReady()
         break
       }
       case 'job/error': {
+        this.overlay?.setTranslating(false)
         this.onError(ev.errorKey, ev.detail)
         break
       }

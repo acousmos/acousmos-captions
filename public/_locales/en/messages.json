@@ -19,6 +19,7 @@
   "menu_force_asr": { "message": "Re-transcribe (ignore captions)" },
   "menu_settings": { "message": "Settings…" },
   "menu_engine_cached": { "message": "cached" },
+  "caption_translating": { "message": "Translating…" },
 
   "toast_gif": { "message": "This is an animated GIF — no audio to transcribe." },
   "toast_need_play": { "message": "Start playing the video once, then click CC again." },

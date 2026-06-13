@@ -19,6 +19,7 @@
   "menu_force_asr": { "message": "重新识别(忽略自带字幕)" },
   "menu_settings": { "message": "设置…" },
   "menu_engine_cached": { "message": "缓存" },
+  "caption_translating": { "message": "翻译中…" },
 
   "toast_gif": { "message": "这是 GIF 动图,没有音频可转写。" },
   "toast_need_play": { "message": "请先播放一下视频,再点 CC。" },
