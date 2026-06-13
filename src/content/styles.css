@@ -117,28 +117,33 @@
   --acap-bg-alpha: 0.55;
 }
 
-/* Centered block row holding one cohesive caption box. */
+/* Centered block row; balance wrapped lines so a long line splits into two
+   even rows rather than a long row + a short orphan. */
 .acap-line {
   display: block;
   width: 100%;
+  max-width: 92%;
+  margin: 0 auto;
   text-align: center;
+  text-wrap: balance;
 }
 
-/* One rounded background box per language line, hugging its (balanced) text
-   block — a single box whether it wraps to one, two, or three rows, rather
-   than a separate box per visual line. */
+/* Background hugs each visual line (YouTube-style): the box clones per wrapped
+   line so its width tracks that line's text, and a tight line-height makes the
+   per-line boxes sit flush as one cohesive shape rather than gappy fragments. */
 .acap-text {
-  display: inline-block;
-  max-width: 86%;
-  padding: 2px 10px;
-  border-radius: 7px;
+  display: inline;
+  padding: 0.16em 0.5em;
+  border-radius: 5px;
   background: rgba(0, 0, 0, var(--acap-bg-alpha));
   color: #ffffff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-  line-height: 1.35;
+  /* ~= text height + 2x vertical padding, so consecutive line boxes meet
+     flush (a cohesive shape) instead of leaving gaps. */
+  line-height: 1.34;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
   white-space: pre-wrap;
-  /* Balance wrapped lines instead of a long first row and a short orphan. */
-  text-wrap: balance;
 }
 
 .acap-line-src .acap-text {
