@@ -3,14 +3,12 @@ import type { CaptionResult, Cue, JobProgress, Utterance } from './types'
 /** One-shot messages (chrome.runtime.sendMessage). */
 export type RuntimeRequest =
   | { kind: 'media/lookup'; mediaId: string }
-  | { kind: 'cache/get'; mediaId: string; targetLang: string }
   | { kind: 'cache/clear' }
   | { kind: 'keys/status' }
   | { kind: 'options/open' }
 
 export type RuntimeResponse =
   | { kind: 'media/lookup'; found: boolean }
-  | { kind: 'cache/get'; result: CaptionResult | null }
   | { kind: 'cache/clear'; ok: true }
   | { kind: 'keys/status'; asrConfigured: boolean; llmConfigured: boolean }
   | { kind: 'options/open'; ok: true }
