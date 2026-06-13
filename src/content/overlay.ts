@@ -1,4 +1,4 @@
-import { findCueIndex, lastCueIndexBefore } from '../core/cues'
+import { lastCueIndexBefore } from '../core/cues'
 import type { Settings } from '../shared/settings'
 import type { Cue } from '../shared/types'
 
@@ -113,10 +113,11 @@ export class CaptionOverlay {
 
   private onTick = (): void => {
     if (!this.visible || this.cues.length === 0) return
-    let idx = findCueIndex(this.cues, this.video.currentTime)
-    // While paused in a gap, keep the most recent line on screen instead of
-    // blanking — so a paused video never looks like captions failed.
-    if (idx === -1 && this.video.paused) idx = lastCueIndexBefore(this.cues, this.video.currentTime)
+    // Hold each line until the next cue begins (not just until the source
+    // sentence stopped). The translation is often longer than the spoken
+    // original, so the silence between sentences is reading time — this is the
+    // single biggest lever for "I couldn't finish reading before it changed".
+    const idx = lastCueIndexBefore(this.cues, this.video.currentTime)
     if (idx === this.lastIndex) return
     this.lastIndex = idx
     if (idx === -1) {
