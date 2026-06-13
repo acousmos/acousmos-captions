@@ -1,3 +1,4 @@
+import { fragmentToAdts, parseAacConfig, type AacConfig } from '../core/fmp4'
 import {
   isMasterPlaylist,
   mimeForPlaylist,
@@ -96,18 +97,35 @@ async function buildHlsPlan(
   const playlist: MediaPlaylist = parseMedia(text, mediaUrl)
   if (playlist.segmentUris.length === 0) throw new JobError('err_audio_fetch', `${label}: no segments`)
   const initBytes = playlist.initUri ? await fetchBytes(playlist.initUri, signal) : null
-  const mime = mimeForPlaylist(playlist, kind)
   const windows: SegmentWindow[] = planWindows(playlist.segmentDurations, windowSec)
+
+  // An audio-only AAC fMP4 rendition is remuxed to ADTS (.aac), which every
+  // ASR backend accepts — many reject fMP4 outright ("no audio streams").
+  const aac: AacConfig | null = kind === 'audio' && initBytes ? parseAacConfig(initBytes) : null
+  const mime = aac ? 'audio/aac' : mimeForPlaylist(playlist, kind)
+
   return {
-    label,
+    label: aac ? `${label}+adts` : label,
     total: windows.length,
     startTimes: windows.map((w) => w.startTime),
     getWindow: async (index: number) => {
       const win = windows[index]!
       const segs = await fetchSegments(playlist.segmentUris.slice(win.startIndex, win.endIndex), signal)
+      if (aac) return { bytes: concatAdts(segs.map((s) => fragmentToAdts(aac, s))), mime }
       return concatPayload(initBytes, segs, mime)
     },
   }
+}
+
+function concatAdts(frames: Uint8Array[]): Uint8Array {
+  const total = frames.reduce((n, f) => n + f.byteLength, 0)
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const f of frames) {
+    out.set(f, offset)
+    offset += f.byteLength
+  }
+  return out
 }
 
 async function fetchSegments(uris: string[], signal: AbortSignal): Promise<Uint8Array[]> {
