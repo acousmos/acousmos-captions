@@ -8,9 +8,6 @@ export interface CueOptions {
   /** Don't end a cue on a sentence boundary shorter than this (merges
    *  interjections like "Um." into the neighbouring sentence). */
   softMin: number
-  /** Once a cue reaches this length, also break it at clause boundaries
-   *  (commas) so long sentences don't become walls of text. */
-  clauseMin: number
   /** A pause this long (s) after sentence-final punctuation ends the cue
    *  even below softMin. */
   shortGap: number
@@ -21,22 +18,22 @@ export interface CueOptions {
 }
 
 /**
- * Defaults tuned for spoken talks: cues are whole sentences where possible
- * (so translation sees complete thoughts), but a long sentence breaks at
- * clause boundaries so each line stays readable and gets its own timing.
+ * Defaults tuned for spoken talks: cues are whole sentences wherever possible
+ * so the translator sees complete thoughts (the thing that makes the output
+ * read well) and each sentence stays on screen for its full spoken span.
+ * Splitting only happens for a genuine run-on past the caps. Long lines are a
+ * display concern, handled by font sizing + holding each line until the next.
  */
 export const DEFAULT_CUE_OPTIONS: CueOptions = {
-  maxChars: 110,
-  maxDur: 10,
+  maxChars: 140,
+  maxDur: 12,
   softMin: 10,
-  clauseMin: 60,
   shortGap: 0.4,
   hardGap: 1.5,
   minDur: 1.0,
 }
 
 const SENTENCE_END = /[.!?。！？…]["'”’)\]]?$/
-const CLAUSE_END = /[,;:，；：、]["'”’)\]]?$/
 
 /**
  * Build display cues from ASR utterances.
@@ -73,10 +70,7 @@ export function buildCues(utterances: Utterance[], opts: CueOptions = DEFAULT_CU
       const wouldExceed = chars + w.text.length + 1 > opts.maxChars || w.end - start > opts.maxDur
       const sentenceBoundary =
         SENTENCE_END.test(prev.text) && (chars >= opts.softMin || gap >= opts.shortGap)
-      // Once a line is long, break it at a clause boundary too, so a long
-      // sentence becomes a few readable, separately-timed lines.
-      const clauseBoundary = CLAUSE_END.test(prev.text) && chars >= opts.clauseMin
-      if (wouldExceed || sentenceBoundary || clauseBoundary || gap >= opts.hardGap) flush()
+      if (wouldExceed || sentenceBoundary || gap >= opts.hardGap) flush()
     }
     bucket.push(w)
     chars += w.text.length + 1

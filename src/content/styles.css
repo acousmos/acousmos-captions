@@ -142,13 +142,13 @@
 }
 
 .acap-line-src {
-  font-size: calc(var(--acap-font-base) * var(--acap-font-scale) * 0.82);
+  font-size: calc(var(--acap-font-base) * var(--acap-font-scale) * var(--acap-fit-scale, 1) * 0.82);
   color: #d3e3ee;
   font-weight: 500;
 }
 
 .acap-line-tgt {
-  font-size: calc(var(--acap-font-base) * var(--acap-font-scale));
+  font-size: calc(var(--acap-font-base) * var(--acap-font-scale) * var(--acap-fit-scale, 1));
   font-weight: 600;
 }
 

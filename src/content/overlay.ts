@@ -18,6 +18,7 @@ export class CaptionOverlay {
   private visible = true
   private isBelow = false
   private disposed = false
+  private containerWidth = 600
 
   constructor(
     private video: HTMLVideoElement,
@@ -140,10 +141,33 @@ export class CaptionOverlay {
     this.tgtEl.style.display = this.tgtEl.textContent ? '' : 'none'
     const any = Boolean(this.srcEl.textContent || this.tgtEl.textContent)
     this.root.classList.toggle('acap-overlay-active', any)
+    this.applyFit(this.srcEl.textContent ?? '', this.tgtEl.textContent ?? '')
+  }
+
+  /**
+   * Auto-shrink long lines so they don't crowd a small player (the "automatic
+   * smaller font" the user asked for). Estimates how many lines each side would
+   * wrap to at full size and scales down toward a floor so the block stays ~2
+   * lines per language — never touches cue text, only display size.
+   */
+  private applyFit(src: string, tgt: string): void {
+    const basePx =
+      parseFloat(getComputedStyle(this.root).getPropertyValue('--acap-font-base')) || 16
+    const unitsPerLine = Math.max(8, this.containerWidth / (basePx * this.display.fontScale))
+    // CJK glyphs are ~1 unit wide, Latin ~0.55.
+    const lineUnits = (s: string): number => {
+      let u = 0
+      for (const c of s) u += /[⺀-鿿＀-￯　-〿]/.test(c) ? 1 : 0.55
+      return u
+    }
+    const worstLines = Math.max(lineUnits(src) * 0.82, lineUnits(tgt)) / unitsPerLine
+    const fit = worstLines > 2 ? Math.max(0.7, 2 / worstLines) : 1
+    this.root.style.setProperty('--acap-fit-scale', fit.toFixed(3))
   }
 
   private observeResize(): void {
     const apply = (w: number): void => {
+      this.containerWidth = w
       const base = Math.min(22, Math.max(12, w * 0.028))
       this.root.style.setProperty('--acap-font-base', `${base}px`)
     }

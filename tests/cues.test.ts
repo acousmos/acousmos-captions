@@ -83,18 +83,7 @@ describe('buildCues — sentence-aware grouping', () => {
     expect(cues.map((c) => c.src).join(' ')).toBe(spec.map((s) => s[0]).join(' '))
   })
 
-  it('breaks a long sentence at a clause boundary (comma) once it is long enough', () => {
-    const spec: [string, number, number][] = []
-    for (let i = 0; i < 12; i++) spec.push([`clause${i}${i === 11 ? ',' : ''}`, i * 0.3, i * 0.3 + 0.25])
-    for (let i = 12; i < 22; i++) spec.push([`tail${i}${i === 21 ? '.' : ''}`, i * 0.3, i * 0.3 + 0.25])
-    const cues = buildCues([{ start: 0, end: 7, text: spec.map((s) => s[0]).join(' '), words: words(spec) }])
-    expect(cues.length).toBe(2)
-    expect(cues[0]!.src.endsWith(',')).toBe(true)
-    // The second cue's boundary is still an ASR word timestamp.
-    expect(spec.map((s) => s[1])).toContain(cues[1]!.start)
-  })
-
-  it('keeps a short clause whole (does not break before clauseMin)', () => {
+  it('keeps a sentence with internal commas whole', () => {
     const cues = buildCues([
       { start: 0, end: 2, text: 'Hi there, friend.', words: words([['Hi', 0, 0.3], ['there,', 0.3, 0.6], ['friend.', 0.6, 1]]) },
     ])
