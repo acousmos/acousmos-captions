@@ -3,6 +3,7 @@
   "extDesc": { "message": "给 X(Twitter)视频加 AI 中英双语字幕,原文永远可见。支持自带 ASR/LLM Key,开源、无订阅。" },
 
   "pill_idle": { "message": "CC" },
+  "pill_working": { "message": "处理中…" },
   "pill_capturing": { "message": "抓取音频…" },
   "pill_transcribing": { "message": "转写中…" },
   "pill_translating": { "message": "翻译中…" },

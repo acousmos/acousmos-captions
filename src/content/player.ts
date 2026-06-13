@@ -87,7 +87,9 @@ export class PlayerController {
   }
 
   private start(force: boolean): void {
-    this.setPill('pill_capturing', 'working')
+    // Neutral label until the background reports a phase — the source (native
+    // captions vs ASR) isn't known yet, so don't claim "fetching audio".
+    this.setPill('pill_working', 'working')
     this.closeMenu()
     this.port?.disconnect()
     void this.beginJob(force)

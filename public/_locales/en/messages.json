@@ -3,6 +3,7 @@
   "extDesc": { "message": "AI bilingual captions for X (Twitter) videos. The original line always stays visible. Bring your own ASR/LLM keys — open source, no subscription." },
 
   "pill_idle": { "message": "CC" },
+  "pill_working": { "message": "Working…" },
   "pill_capturing": { "message": "Fetching audio…" },
   "pill_transcribing": { "message": "Transcribing…" },
   "pill_translating": { "message": "Translating…" },
