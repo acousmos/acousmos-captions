@@ -77,35 +77,75 @@ export const BUILTIN_TERMS: readonly string[] = [
   'API',
   'SDK',
   'webhook',
+  // Product / feature names that should stay in English (kept recognizable)
+  'Computer Use',
+  'Core Web Vitals',
+  'Web Vitals',
+  'Chrome DevTools',
+  'DevTools',
 ]
 
-function parseCustom(raw: string): string[] {
-  return raw
-    .split(/[\n,]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+/**
+ * Target-specific forced translations applied by default ("always render X as
+ * Y"), so common AI terms come out consistent out of the box. These are
+ * language-specific (智能体 only makes sense for Chinese), so they only apply
+ * when the target language matches. Users can override any of these, or add
+ * their own, via the editable glossary (`term=译法`).
+ */
+const BUILTIN_MAPPINGS: readonly { lang: string; pairs: Readonly<Record<string, string>> }[] = [
+  { lang: 'zh', pairs: { agent: '智能体', agents: '智能体', 'sub-agent': '子智能体', subagent: '子智能体', skill: '技能' } },
+]
+
+/** One glossary entry: a source term, optionally with a forced translation. */
+interface GlossaryEntry {
+  term: string
+  translation?: string
 }
 
-/** Combined, de-duplicated term list (built-in + user custom). */
-export function glossaryTerms(customRaw: string): string[] {
+/** Parse `term` (keep as written) and `term=译法` (force translation) entries. */
+function parseEntries(raw: string): GlossaryEntry[] {
+  const out: GlossaryEntry[] = []
+  for (const piece of raw.split(/[\n,]/)) {
+    const s = piece.trim()
+    if (!s) continue
+    const eq = s.indexOf('=')
+    if (eq > 0) {
+      const term = s.slice(0, eq).trim()
+      const translation = s.slice(eq + 1).trim()
+      if (term) out.push(translation ? { term, translation } : { term })
+    } else {
+      out.push({ term: s })
+    }
+  }
+  return out
+}
+
+function builtinMappingsFor(targetLang: string): GlossaryEntry[] {
+  const lang = targetLang.toLowerCase()
+  const match = BUILTIN_MAPPINGS.find((b) => lang.startsWith(b.lang))
+  return match ? Object.entries(match.pairs).map(([term, translation]) => ({ term, translation })) : []
+}
+
+/** De-duplicate by term (case-insensitive); earlier entries win. */
+function dedupe(entries: GlossaryEntry[]): GlossaryEntry[] {
   const seen = new Set<string>()
-  const out: string[] = []
-  for (const t of [...parseCustom(customRaw), ...BUILTIN_TERMS]) {
-    const key = t.toLowerCase()
+  const out: GlossaryEntry[] = []
+  for (const e of entries) {
+    const key = e.term.toLowerCase()
     if (!seen.has(key)) {
       seen.add(key)
-      out.push(t)
+      out.push(e)
     }
   }
   return out
 }
 
 /**
- * A compact comma-joined list for the translation prompt. Capped so it never
- * dominates the prompt; user terms come first (highest priority).
+ * Source spellings only (translations stripped), for the ASR layer which just
+ * needs the term to recognize. User terms first, then built-ins.
  */
-export function glossaryForPrompt(customRaw: string, max = 60): string {
-  return glossaryTerms(customRaw).slice(0, max).join(', ')
+export function glossaryTerms(customRaw: string): string[] {
+  return dedupe([...parseEntries(customRaw), ...BUILTIN_TERMS.map((term) => ({ term }))]).map((e) => e.term)
 }
 
 /**
@@ -114,4 +154,24 @@ export function glossaryForPrompt(customRaw: string, max = 60): string {
  */
 export function glossaryForDeepgram(customRaw: string, max = 80): string[] {
   return glossaryTerms(customRaw).slice(0, max)
+}
+
+/**
+ * Glossary string for the translation prompt: a "keep in English" list plus an
+ * "always render X→Y" list. User entries (which may include `term=译法`) come
+ * first and can override the target-specific built-in mappings; capped so it
+ * never dominates the prompt. Returns '' when empty.
+ */
+export function glossaryForPrompt(customRaw: string, targetLang: string, max = 60): string {
+  const entries = dedupe([
+    ...parseEntries(customRaw), // user — highest priority, can override built-ins
+    ...builtinMappingsFor(targetLang), // target-specific forced translations
+    ...BUILTIN_TERMS.map((term) => ({ term })), // keep-in-English names
+  ]).slice(0, max)
+  const mappings = entries.filter((e) => e.translation).map((e) => `${e.term}→${e.translation!}`)
+  const keep = entries.filter((e) => !e.translation).map((e) => e.term)
+  const parts: string[] = []
+  if (mappings.length) parts.push(`always render: ${mappings.join(', ')}`)
+  if (keep.length) parts.push(`keep in English: ${keep.join(', ')}`)
+  return parts.join(' | ')
 }

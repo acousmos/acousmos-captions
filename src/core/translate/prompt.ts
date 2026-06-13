@@ -15,7 +15,12 @@ export function systemPrompt(targetLang: string, glossary = ''): string {
     '- Return exactly one item per input id, in the same order, with the same id values. Never merge, split, reorder, omit, or invent ids; the output array length must equal the input length.',
     '- No explanations, no markdown fences.',
   ]
-  if (glossary) lines.push(`Glossary (canonical spellings of likely terms): ${glossary}`)
+  if (glossary) {
+    lines.push(
+      `Glossary — apply consistently, and fix obvious ASR mishearings of these names: ${glossary}. ` +
+        '("always render: X→Y" = translate X as Y every time; "keep in English" = leave those terms untranslated.)',
+    )
+  }
   return lines.join('\n')
 }
 

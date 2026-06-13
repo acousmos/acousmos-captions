@@ -23,6 +23,12 @@ describe('glossaryTerms', () => {
   it('ignores blanks', () => {
     expect(glossaryTerms('  ,\n , ')).toEqual([...BUILTIN_TERMS])
   })
+
+  it('keeps only the source term from a word=译法 entry (ASR needs the spelling)', () => {
+    const terms = glossaryTerms('Foobar=福报')
+    expect(terms[0]).toBe('Foobar')
+    expect(terms).not.toContain('Foobar=福报')
+  })
 })
 
 describe('glossaryForDeepgram', () => {
@@ -32,9 +38,26 @@ describe('glossaryForDeepgram', () => {
 })
 
 describe('glossaryForPrompt', () => {
-  it('returns a comma-joined capped string', () => {
-    const s = glossaryForPrompt('Acousmos', 3)
-    expect(s.startsWith('Acousmos, ')).toBe(true)
-    expect(s.split(', ')).toHaveLength(3)
+  it('lists keep-in-English terms', () => {
+    const s = glossaryForPrompt('Acousmos', 'zh-CN')
+    expect(s).toContain('keep in English:')
+    expect(s).toContain('Acousmos')
+  })
+
+  it('applies built-in forced translations for a Chinese target', () => {
+    const s = glossaryForPrompt('', 'zh-CN')
+    expect(s).toContain('always render:')
+    expect(s).toContain('agent→智能体')
+  })
+
+  it('does NOT apply the Chinese built-in mappings for a non-Chinese target', () => {
+    const s = glossaryForPrompt('', 'ja')
+    expect(s).not.toContain('智能体')
+  })
+
+  it('lets a user entry override a built-in mapping', () => {
+    const s = glossaryForPrompt('agent=代理', 'zh-CN')
+    expect(s).toContain('agent→代理')
+    expect(s).not.toContain('agent→智能体')
   })
 })

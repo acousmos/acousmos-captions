@@ -95,7 +95,7 @@ async function runJob(
 
   const provider = getTranslateProvider(settings.llm.provider)
   const { llmModel, llmBaseUrl } = resolveLlmTarget(settings)
-  const glossary = glossaryForPrompt(settings.asr.customTerms)
+  const glossary = glossaryForPrompt(settings.asr.customTerms, targetLang)
 
   const cues: Cue[] = []
 
