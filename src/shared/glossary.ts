@@ -8,6 +8,13 @@
  * terms most likely to appear in the videos this tool targets (AI/dev talks).
  */
 export const BUILTIN_TERMS: readonly string[] = [
+  // Product / feature names most often mis-translated — kept first so they always
+  // make it into the (capped) prompt glossary.
+  'Computer Use',
+  'Core Web Vitals',
+  'Web Vitals',
+  'Chrome DevTools',
+  'DevTools',
   // Anthropic / Claude
   'Anthropic',
   'Claude',
@@ -77,22 +84,18 @@ export const BUILTIN_TERMS: readonly string[] = [
   'API',
   'SDK',
   'webhook',
-  // Product / feature names that should stay in English (kept recognizable)
-  'Computer Use',
-  'Core Web Vitals',
-  'Web Vitals',
-  'Chrome DevTools',
-  'DevTools',
 ]
 
 /**
  * Target-specific forced translations applied by default ("always render X as
  * Y"), so common AI terms come out consistent out of the box. These are
- * language-specific (智能体 only makes sense for Chinese), so they only apply
- * when the target language matches. Users can override any of these, or add
- * their own, via the editable glossary (`term=译法`).
+ * language-specific (智能体 vs 智能體), so they only apply when the target's
+ * language tag matches — most-specific first (zh-tw / zh-cn before bare zh).
+ * Users can override any of these, or add their own, via the editable glossary.
  */
 const BUILTIN_MAPPINGS: readonly { lang: string; pairs: Readonly<Record<string, string>> }[] = [
+  { lang: 'zh-tw', pairs: { agent: '智能體', agents: '智能體', 'sub-agent': '子智能體', subagent: '子智能體', skill: '技能' } },
+  { lang: 'zh-cn', pairs: { agent: '智能体', agents: '智能体', 'sub-agent': '子智能体', subagent: '子智能体', skill: '技能' } },
   { lang: 'zh', pairs: { agent: '智能体', agents: '智能体', 'sub-agent': '子智能体', subagent: '子智能体', skill: '技能' } },
 ]
 
@@ -157,19 +160,26 @@ export function glossaryForDeepgram(customRaw: string, max = 80): string[] {
 }
 
 /**
- * Glossary string for the translation prompt: a "keep in English" list plus an
- * "always render X→Y" list. User entries (which may include `term=译法`) come
- * first and can override the target-specific built-in mappings; capped so it
- * never dominates the prompt. Returns '' when empty.
+ * Glossary string for the translation prompt: an "always render X→Y" list plus a
+ * "keep in English" list. User entries (which may include `term=译法`) come first
+ * and can override the target-specific built-in mappings. The two sections are
+ * capped INDEPENDENTLY so a long mapping list can't push the keep-English terms
+ * out of the prompt (and vice versa). Returns '' when empty.
  */
-export function glossaryForPrompt(customRaw: string, targetLang: string, max = 60): string {
+export function glossaryForPrompt(customRaw: string, targetLang: string, maxKeep = 80, maxMap = 40): string {
   const entries = dedupe([
     ...parseEntries(customRaw), // user — highest priority, can override built-ins
     ...builtinMappingsFor(targetLang), // target-specific forced translations
     ...BUILTIN_TERMS.map((term) => ({ term })), // keep-in-English names
-  ]).slice(0, max)
-  const mappings = entries.filter((e) => e.translation).map((e) => `${e.term}→${e.translation!}`)
-  const keep = entries.filter((e) => !e.translation).map((e) => e.term)
+  ])
+  const mappings = entries
+    .filter((e) => e.translation)
+    .slice(0, maxMap)
+    .map((e) => `${e.term}→${e.translation!}`)
+  const keep = entries
+    .filter((e) => !e.translation)
+    .slice(0, maxKeep)
+    .map((e) => e.term)
   const parts: string[] = []
   if (mappings.length) parts.push(`always render: ${mappings.join(', ')}`)
   if (keep.length) parts.push(`keep in English: ${keep.join(', ')}`)

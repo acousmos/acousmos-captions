@@ -44,15 +44,29 @@ describe('glossaryForPrompt', () => {
     expect(s).toContain('Acousmos')
   })
 
+  it('includes the high-value product names by default (not sliced off)', () => {
+    const s = glossaryForPrompt('', 'zh-CN')
+    expect(s).toContain('Computer Use')
+    expect(s).toContain('Core Web Vitals')
+    expect(s).toContain('Chrome DevTools')
+  })
+
   it('applies built-in forced translations for a Chinese target', () => {
     const s = glossaryForPrompt('', 'zh-CN')
     expect(s).toContain('always render:')
     expect(s).toContain('agent→智能体')
   })
 
+  it('uses Traditional Chinese mappings for zh-TW (not Simplified)', () => {
+    const s = glossaryForPrompt('', 'zh-TW')
+    expect(s).toContain('agent→智能體')
+    expect(s).not.toContain('智能体')
+  })
+
   it('does NOT apply the Chinese built-in mappings for a non-Chinese target', () => {
     const s = glossaryForPrompt('', 'ja')
     expect(s).not.toContain('智能体')
+    expect(s).not.toContain('智能體')
   })
 
   it('lets a user entry override a built-in mapping', () => {
