@@ -103,6 +103,23 @@ export function llmKeyFor(s: Settings): string {
   }
 }
 
+export function llmModelFor(s: Settings): string {
+  switch (s.llm.provider) {
+    case 'openai':
+      return s.llm.openaiModel
+    case 'gemini':
+      return s.llm.geminiModel
+    case 'anthropic':
+      return s.llm.anthropicModel
+  }
+}
+
+/** Identifies which engine produced a cached result, so switching provider/model
+ *  re-translates (and keeps each variant cached separately for comparison). */
+export function llmCacheTag(s: Settings): string {
+  return `${s.llm.provider}@${llmModelFor(s)}`
+}
+
 export function onSettingsChanged(cb: (s: Settings) => void): void {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[KEY]) {

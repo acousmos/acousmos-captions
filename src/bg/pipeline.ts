@@ -4,7 +4,7 @@ import { buildCues } from '../core/cues'
 import { glossaryForDeepgram, glossaryForPrompt, glossaryTerms } from '../shared/glossary'
 import { getTranslateProvider, translateCues } from '../core/translate'
 import type { JobEvent, JobRequest } from '../shared/messages'
-import { asrKeyFor, llmKeyFor, loadSettings } from '../shared/settings'
+import { asrKeyFor, llmCacheTag, llmKeyFor, llmModelFor, loadSettings } from '../shared/settings'
 import { JobError, type CaptionResult, type Cue, type JobPhase, type Utterance } from '../shared/types'
 import { resolveAudioPlans, type AudioPlan } from './audio'
 import { lookupMedia } from './capture'
@@ -80,7 +80,7 @@ async function runJob(
   const signal = job.abort.signal
 
   if (!req.force) {
-    const cached = await cacheGet(mediaId, targetLang)
+    const cached = await cacheGet(mediaId, targetLang, llmCacheTag(settings))
     if (cached) {
       job.snapshot = { phase: 'done', cues: cached.cues }
       broadcast(job, { kind: 'job/done', result: cached, fromCache: true })
@@ -199,6 +199,7 @@ async function runJob(
     createdAt: Date.now(),
     asrProvider: settings.asr.provider,
     llmProvider: settings.llm.provider,
+    llmModel,
   }
   await cachePut(result)
   job.snapshot = { phase: 'done', cues }
@@ -218,13 +219,9 @@ function resolveLlmTarget(settings: Awaited<ReturnType<typeof loadSettings>>): {
   llmModel: string
   llmBaseUrl: string | undefined
 } {
-  switch (settings.llm.provider) {
-    case 'openai':
-      return { llmModel: settings.llm.openaiModel, llmBaseUrl: settings.llm.openaiBaseUrl }
-    case 'gemini':
-      return { llmModel: settings.llm.geminiModel, llmBaseUrl: undefined }
-    case 'anthropic':
-      return { llmModel: settings.llm.anthropicModel, llmBaseUrl: undefined }
+  return {
+    llmModel: llmModelFor(settings),
+    llmBaseUrl: settings.llm.provider === 'openai' ? settings.llm.openaiBaseUrl : undefined,
   }
 }
 

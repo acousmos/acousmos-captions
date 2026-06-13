@@ -5,21 +5,23 @@ import type { CaptionResult } from '../shared/types'
  * (or reopening the tab) must not re-pay ASR + translation.
  */
 
-// v2: bumped with the translation-alignment fix so results cached by the older
-// pipeline (which could shift a translation onto the next cue) are not served.
+// v3: cache identity now includes the LLM engine (provider@model), so switching
+// translator re-runs and each variant is cached separately for comparison.
+// (v2 added the translation-alignment fix; v1 predated it.)
 const NAMESPACE = 'cap:'
-const PREFIX = 'cap:v2:'
-const INDEX_KEY = 'cap:index:v2'
+const PREFIX = 'cap:v3:'
+const INDEX_KEY = 'cap:index:v3'
 const MAX_ENTRIES = 60
 
 type CacheIndex = Record<string, number> // key -> lastUsed epoch ms
 
-function keyFor(mediaId: string, targetLang: string): string {
-  return `${PREFIX}${mediaId}:${targetLang}`
+/** `llmTag` is `${provider}@${model}` — see llmCacheTag in settings. */
+function keyFor(mediaId: string, targetLang: string, llmTag: string): string {
+  return `${PREFIX}${mediaId}:${targetLang}:${llmTag}`
 }
 
-export async function cacheGet(mediaId: string, targetLang: string): Promise<CaptionResult | null> {
-  const key = keyFor(mediaId, targetLang)
+export async function cacheGet(mediaId: string, targetLang: string, llmTag: string): Promise<CaptionResult | null> {
+  const key = keyFor(mediaId, targetLang, llmTag)
   const raw = await chrome.storage.local.get(key)
   const result = (raw[key] as CaptionResult | undefined) ?? null
   if (result) void touch(key)
@@ -27,7 +29,7 @@ export async function cacheGet(mediaId: string, targetLang: string): Promise<Cap
 }
 
 export async function cachePut(result: CaptionResult): Promise<void> {
-  const key = keyFor(result.mediaId, result.targetLang)
+  const key = keyFor(result.mediaId, result.targetLang, `${result.llmProvider}@${result.llmModel}`)
   await chrome.storage.local.set({ [key]: result })
   await touch(key)
 }

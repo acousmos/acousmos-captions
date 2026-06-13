@@ -36,6 +36,8 @@ export interface CaptionResult {
   /** Provider ids, for display/debugging. */
   asrProvider: string
   llmProvider: string
+  /** LLM model id — part of the cache identity so switching model re-translates. */
+  llmModel: string
 }
 
 export type AsrProviderId = 'deepgram' | 'soniox'

@@ -1,6 +1,6 @@
 import { cacheClear, cacheGet, purgeOldCaches } from '../core/cache'
 import { JOB_PORT_PREFIX, type JobRequest, type RuntimeRequest, type RuntimeResponse } from '../shared/messages'
-import { asrKeyFor, llmKeyFor, loadSettings } from '../shared/settings'
+import { asrKeyFor, llmCacheTag, llmKeyFor, loadSettings } from '../shared/settings'
 import { initCapture, lookupMedia } from './capture'
 import { initDevReload } from './devReload'
 import { attachPort } from './pipeline'
@@ -19,7 +19,7 @@ chrome.runtime.onMessage.addListener(
           break
         }
         case 'cache/get': {
-          const result = await cacheGet(msg.mediaId, msg.targetLang)
+          const result = await cacheGet(msg.mediaId, msg.targetLang, llmCacheTag(await loadSettings()))
           sendResponse({ kind: 'cache/get', result })
           break
         }
