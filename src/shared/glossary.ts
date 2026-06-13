@@ -88,16 +88,15 @@ export const BUILTIN_TERMS: readonly string[] = [
 
 /**
  * Target-specific forced translations applied by default ("always render X as
- * Y"), so common AI terms come out consistent out of the box. These are
- * language-specific (智能体 vs 智能體), so they only apply when the target's
- * language tag matches — most-specific first (zh-tw / zh-cn before bare zh).
- * Users can override any of these, or add their own, via the editable glossary.
+ * Y"), so common AI terms come out consistent out of the box. Keyed by the exact
+ * target-language tag the Settings dropdown emits (zh-CN / zh-TW), since 智能体
+ * vs 智能體 is script-specific. Anything else gets no built-in mapping; users can
+ * add their own via the editable glossary (`term=译法`).
  */
-const BUILTIN_MAPPINGS: readonly { lang: string; pairs: Readonly<Record<string, string>> }[] = [
-  { lang: 'zh-tw', pairs: { agent: '智能體', agents: '智能體', 'sub-agent': '子智能體', subagent: '子智能體', skill: '技能' } },
-  { lang: 'zh-cn', pairs: { agent: '智能体', agents: '智能体', 'sub-agent': '子智能体', subagent: '子智能体', skill: '技能' } },
-  { lang: 'zh', pairs: { agent: '智能体', agents: '智能体', 'sub-agent': '子智能体', subagent: '子智能体', skill: '技能' } },
-]
+const FORCED_TRANSLATIONS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'zh-cn': { agent: '智能体', agents: '智能体', 'sub-agent': '子智能体', subagent: '子智能体', skill: '技能' },
+  'zh-tw': { agent: '智能體', agents: '智能體', 'sub-agent': '子智能體', subagent: '子智能體', skill: '技能' },
+}
 
 /** One glossary entry: a source term, optionally with a forced translation. */
 interface GlossaryEntry {
@@ -124,9 +123,8 @@ function parseEntries(raw: string): GlossaryEntry[] {
 }
 
 function builtinMappingsFor(targetLang: string): GlossaryEntry[] {
-  const lang = targetLang.toLowerCase()
-  const match = BUILTIN_MAPPINGS.find((b) => lang.startsWith(b.lang))
-  return match ? Object.entries(match.pairs).map(([term, translation]) => ({ term, translation })) : []
+  const pairs = FORCED_TRANSLATIONS[targetLang.toLowerCase()]
+  return pairs ? Object.entries(pairs).map(([term, translation]) => ({ term, translation })) : []
 }
 
 /** De-duplicate by term (case-insensitive); earlier entries win. */
