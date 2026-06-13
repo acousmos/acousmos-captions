@@ -66,6 +66,7 @@
         <label data-i18n="opt_provider"></label>
         <select id="llm-provider">
           <option value="openai">OpenAI-compatible</option>
+          <option value="gemini">Google Gemini</option>
           <option value="anthropic">Anthropic (Claude)</option>
         </select>
       </div>
@@ -87,6 +88,19 @@
           <div class="keyline">
             <input id="openai-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" />
             <button id="test-openai" class="btn" data-i18n="opt_test_key"></button>
+          </div>
+        </div>
+      </div>
+      <div id="gemini-fields" class="hidden">
+        <div class="row">
+          <label data-i18n="opt_model"></label>
+          <input id="gemini-model" type="text" spellcheck="false" placeholder="gemini-3.5-flash" />
+        </div>
+        <div class="row">
+          <label data-i18n="opt_api_key"></label>
+          <div class="keyline">
+            <input id="gemini-key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" />
+            <button id="test-gemini" class="btn" data-i18n="opt_test_key"></button>
           </div>
         </div>
       </div>

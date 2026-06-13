@@ -1,6 +1,7 @@
 import { deepgram } from '../core/asr/deepgram'
 import { soniox } from '../core/asr/soniox'
 import { anthropic } from '../core/translate/anthropic'
+import { gemini } from '../core/translate/gemini'
 import { normalizeBase, openaiCompat } from '../core/translate/openai'
 import { cacheClear } from '../core/cache'
 import { t } from '../shared/i18n'
@@ -33,6 +34,8 @@ const els = {
   openaiKey: $<HTMLInputElement>('openai-key'),
   anthropicModel: $<HTMLInputElement>('anthropic-model'),
   anthropicKey: $<HTMLInputElement>('anthropic-key'),
+  geminiModel: $<HTMLInputElement>('gemini-model'),
+  geminiKey: $<HTMLInputElement>('gemini-key'),
   targetLang: $<HTMLSelectElement>('target-lang'),
   mode: $<HTMLSelectElement>('mode'),
   order: $<HTMLSelectElement>('order'),
@@ -55,6 +58,8 @@ void loadSettings().then((s) => {
   els.openaiKey.value = s.llm.openaiKey
   els.anthropicModel.value = s.llm.anthropicModel
   els.anthropicKey.value = s.llm.anthropicKey
+  els.geminiModel.value = s.llm.geminiModel
+  els.geminiKey.value = s.llm.geminiKey
   els.targetLang.value = s.llm.targetLang
   els.mode.value = s.display.mode
   els.order.value = s.display.srcFirst ? 'src' : 'tgt'
@@ -84,6 +89,8 @@ function collect(): Settings {
       openaiModel: els.openaiModel.value.trim() || 'gpt-4.1-mini',
       anthropicKey: els.anthropicKey.value.trim(),
       anthropicModel: els.anthropicModel.value.trim() || 'claude-haiku-4-5',
+      geminiKey: els.geminiKey.value.trim(),
+      geminiModel: els.geminiModel.value.trim() || 'gemini-3.5-flash',
       targetLang: els.targetLang.value,
     },
     display: {
@@ -117,6 +124,7 @@ function syncVisibility(): void {
   $('row-soniox-key').classList.toggle('hidden', asr !== 'soniox')
   const llm = els.llmProvider.value
   $('openai-fields').classList.toggle('hidden', llm !== 'openai')
+  $('gemini-fields').classList.toggle('hidden', llm !== 'gemini')
   $('anthropic-fields').classList.toggle('hidden', llm !== 'anthropic')
 }
 
@@ -178,6 +186,7 @@ bindTest('test-openai', () =>
 bindTest('test-anthropic', () =>
   anthropic.testKey(els.anthropicKey.value.trim(), { model: els.anthropicModel.value.trim() }),
 )
+bindTest('test-gemini', () => gemini.testKey(els.geminiKey.value.trim(), { model: els.geminiModel.value.trim() }))
 
 $('clear-cache').addEventListener('click', () => {
   void cacheClear().then(() => flash(t('opt_cache_cleared'), 'ok'))

@@ -17,6 +17,8 @@ export interface Settings {
     openaiModel: string
     anthropicKey: string
     anthropicModel: string
+    geminiKey: string
+    geminiModel: string
     targetLang: string
   }
   display: {
@@ -47,6 +49,8 @@ export const DEFAULT_SETTINGS: Settings = {
     openaiModel: 'gpt-4.1-mini',
     anthropicKey: '',
     anthropicModel: 'claude-haiku-4-5',
+    geminiKey: '',
+    geminiModel: 'gemini-3.5-flash',
     targetLang: 'zh-CN',
   },
   display: {
@@ -89,7 +93,14 @@ export function asrKeyFor(s: Settings): string {
 }
 
 export function llmKeyFor(s: Settings): string {
-  return s.llm.provider === 'openai' ? s.llm.openaiKey : s.llm.anthropicKey
+  switch (s.llm.provider) {
+    case 'openai':
+      return s.llm.openaiKey
+    case 'gemini':
+      return s.llm.geminiKey
+    case 'anthropic':
+      return s.llm.anthropicKey
+  }
 }
 
 export function onSettingsChanged(cb: (s: Settings) => void): void {

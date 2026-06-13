@@ -1,11 +1,13 @@
 import type { Cue, LlmProviderId } from '../../shared/types'
 import { anthropic } from './anthropic'
+import { gemini } from './gemini'
 import { openaiCompat } from './openai'
 import type { BatchItem, TranslateContext, TranslateOptions, TranslateProvider } from './types'
 
 const providers: Record<LlmProviderId, TranslateProvider> = {
   openai: openaiCompat,
   anthropic,
+  gemini,
 }
 
 export function getTranslateProvider(id: LlmProviderId): TranslateProvider {

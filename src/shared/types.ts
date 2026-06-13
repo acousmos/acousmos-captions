@@ -39,7 +39,7 @@ export interface CaptionResult {
 }
 
 export type AsrProviderId = 'deepgram' | 'soniox'
-export type LlmProviderId = 'openai' | 'anthropic'
+export type LlmProviderId = 'openai' | 'anthropic' | 'gemini'
 
 export interface AudioPayload {
   bytes: Uint8Array

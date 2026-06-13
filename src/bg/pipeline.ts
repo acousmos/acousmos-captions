@@ -92,7 +92,7 @@ async function runJob(
   if (!llmKey) throw new JobError('toast_no_llm_key')
 
   const provider = getTranslateProvider(settings.llm.provider)
-  const isOpenAi = settings.llm.provider === 'openai'
+  const { llmModel, llmBaseUrl } = resolveLlmTarget(settings)
   const glossary = glossaryForPrompt(settings.asr.customTerms)
 
   const cues: Cue[] = []
@@ -108,8 +108,8 @@ async function runJob(
     broadcast(job, { kind: 'job/utterances', cues }) // source lines render immediately
     await translateCues(windowCues, provider, {
       key: llmKey,
-      model: isOpenAi ? settings.llm.openaiModel : settings.llm.anthropicModel,
-      baseUrl: isOpenAi ? settings.llm.openaiBaseUrl : undefined,
+      model: llmModel,
+      baseUrl: llmBaseUrl,
       targetLang,
       glossary,
       signal,
@@ -210,6 +210,21 @@ async function runJob(
       kind: 'job/progress',
       progress: { phase: 'done', errorKey: 'toast_translation_partial' },
     })
+  }
+}
+
+/** Per-provider model + base URL. Gemini's base URL is fixed inside its provider. */
+function resolveLlmTarget(settings: Awaited<ReturnType<typeof loadSettings>>): {
+  llmModel: string
+  llmBaseUrl: string | undefined
+} {
+  switch (settings.llm.provider) {
+    case 'openai':
+      return { llmModel: settings.llm.openaiModel, llmBaseUrl: settings.llm.openaiBaseUrl }
+    case 'gemini':
+      return { llmModel: settings.llm.geminiModel, llmBaseUrl: undefined }
+    case 'anthropic':
+      return { llmModel: settings.llm.anthropicModel, llmBaseUrl: undefined }
   }
 }
 
