@@ -23,6 +23,7 @@ export class CaptionOverlay {
   private visible = true
   private disposed = false
   private containerWidth = 600
+  private resizeObserver: ResizeObserver | null = null
 
   constructor(
     private video: HTMLVideoElement,
@@ -96,6 +97,8 @@ export class CaptionOverlay {
   dispose(): void {
     this.disposed = true
     this.stopLoop()
+    this.resizeObserver?.disconnect()
+    this.resizeObserver = null
     this.video.removeEventListener('timeupdate', this.onTick)
     this.video.removeEventListener('seeked', this.onTick)
     this.video.removeEventListener('play', this.startLoop)
@@ -183,12 +186,17 @@ export class CaptionOverlay {
       this.containerWidth = w
       const base = Math.min(22, Math.max(12, w * 0.028))
       this.root.style.setProperty('--acap-font-base', `${base}px`)
+      // Box width is measured per render, so re-fit the on-screen line for the
+      // new player size (entering/leaving fullscreen keeps the same cue, which
+      // onTick would otherwise skip).
+      this.lastIndex = -2
+      this.onTick()
     }
     apply(this.container.clientWidth || 600)
-    const ro = new ResizeObserver((entries) => {
+    this.resizeObserver = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width
       if (w) apply(w)
     })
-    ro.observe(this.container)
+    this.resizeObserver.observe(this.container)
   }
 }
