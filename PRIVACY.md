@@ -18,12 +18,12 @@ Acousmos Captions is designed so that **no Acousmos server ever touches your dat
 
 ## Third parties
 
-Your audio/text is subject to the privacy policy of the providers **you** choose and key:
+Your audio/text is subject to the privacy policies and terms of the providers **you** choose and key:
 
 - Deepgram: deepgram.com/privacy
 - Soniox: soniox.com/privacy
 - OpenAI (or your chosen compatible endpoint's policy): openai.com/policies
-- Google Gemini: ai.google.dev/gemini-api/terms
+- Google Gemini: policies.google.com/privacy (API terms: ai.google.dev/gemini-api/terms)
 - Anthropic: anthropic.com/legal/privacy
 
 If a future opt-in hosted mode is added (Acousmos-managed quota), it will be clearly labeled, off by default, and documented here before release.
