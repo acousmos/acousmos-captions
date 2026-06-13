@@ -144,23 +144,30 @@ async function runJob(
   let active: AudioPlan | null = null
   let firstUtterances: Utterance[] = []
   let lastErr: unknown
+  broadcast(job, { kind: 'job/debug', info: `plans: ${plans.map((p) => p.label).join(', ')}` })
   for (const plan of plans) {
     if (signal.aborted) return
     try {
-      const utts = await transcribe(await plan.getWindow(0))
+      const payload = await plan.getWindow(0)
+      const head = [...payload.bytes.subarray(0, 4)].map((b) => b.toString(16).padStart(2, '0')).join(' ')
+      broadcast(job, {
+        kind: 'job/debug',
+        info: `try "${plan.label}": ${payload.bytes.length}B ${payload.mime} head=${head}`,
+      })
+      const utts = await transcribe(payload)
       active = plan
       firstUtterances = utts
+      broadcast(job, { kind: 'job/debug', info: `OK "${plan.label}" → ${utts.length} utterances` })
       break
     } catch (e) {
       if (signal.aborted) throw e
       if (e instanceof JobError && e.key === 'err_asr_auth') throw e // a bad key won't improve
       lastErr = e
-      console.debug(`[acousmos-captions] audio source "${plan.label}" rejected:`, (e as Error).message)
+      broadcast(job, { kind: 'job/debug', info: `rejected "${plan.label}": ${(e as Error).message}` })
       // try the next candidate source
     }
   }
   if (!active) throw lastErr instanceof Error ? lastErr : new JobError('err_audio_fetch')
-  console.debug(`[acousmos-captions] using audio source "${active.label}" (${active.total} window(s))`)
 
   setPhase(job, 'translating')
   await processWindow(firstUtterances, active.startTimes[0] ?? 0)

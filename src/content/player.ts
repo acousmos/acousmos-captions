@@ -103,6 +103,10 @@ export class PlayerController {
   private onEvent(ev: JobEvent): void {
     if (this.disposed) return
     switch (ev.kind) {
+      case 'job/debug': {
+        console.debug('[acousmos-captions]', ev.info)
+        break
+      }
       case 'job/progress': {
         if (ev.progress.errorKey) {
           toast(t(ev.progress.errorKey))

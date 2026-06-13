@@ -26,6 +26,7 @@ export interface JobRequest {
 }
 
 export type JobEvent =
+  | { kind: 'job/debug'; info: string }
   | { kind: 'job/progress'; progress: JobProgress }
   | { kind: 'job/utterances'; cues: Cue[] } // English-first render: cues without tgt
   | { kind: 'job/translated'; ids: number[]; texts: string[] } // patch tgt by cue id
