@@ -74,30 +74,54 @@ describe('cache', () => {
   it('purges only older schema versions, keeping current entries', async () => {
     const store = installChromeMock()
     const s = settingsFor({ provider: 'openai' })
-    await cachePut(result(), cacheIdentity(s)) // writes a current (cap:v5:) entry
+    await cachePut(result(), cacheIdentity(s, 'asr')) // writes a current (cap:v5:) entry
     store.set('cap:v3:m1:zh-CN:openai@gpt-4.1-mini', { stale: true })
     store.set('cap:v4:m1:zh-CN:openai@gpt-4.1-mini', { stale: true })
     store.set('cap:index:v4', { 'cap:v4:m1:zh-CN:openai@gpt-4.1-mini': 1 })
     await purgeOldCaches()
     expect([...store.keys()].some((k) => k.startsWith('cap:v3:') || k.startsWith('cap:v4:'))).toBe(false)
-    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(s))).not.toBeNull() // current survived
+    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(s, 'asr'))).not.toBeNull() // current survived
   })
 })
 
-describe('cacheIdentity (glossary is part of cache identity)', () => {
+describe('cacheIdentity (glossary + source are part of cache identity)', () => {
   beforeEach(() => installChromeMock())
 
-  it('round-trips when the glossary is unchanged', async () => {
+  it('round-trips when nothing relevant changed', async () => {
     const s = settingsFor({ provider: 'openai' })
-    await cachePut(result(), cacheIdentity(s))
-    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(s))).not.toBeNull()
+    await cachePut(result(), cacheIdentity(s, 'asr'))
+    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(s, 'asr'))).not.toBeNull()
   })
 
   it('misses after the user edits the glossary (so the change re-translates)', async () => {
     const before = settingsFor({ provider: 'openai' })
-    await cachePut(result(), cacheIdentity(before))
+    await cachePut(result(), cacheIdentity(before, 'asr'))
     const after = { ...before, asr: { ...before.asr, customTerms: 'agent=代理' } }
-    expect(cacheIdentity(after)).not.toBe(cacheIdentity(before))
-    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(after))).toBeNull()
+    expect(cacheIdentity(after, 'asr')).not.toBe(cacheIdentity(before, 'asr'))
+    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(after, 'asr'))).toBeNull()
+  })
+
+  it('keeps native and ASR sources on separate keys (re-transcribe ≠ overwrite native)', async () => {
+    const s = settingsFor({ provider: 'openai' })
+    await cachePut(result(), cacheIdentity(s, 'native'))
+    expect(cacheIdentity(s, 'native')).not.toBe(cacheIdentity(s, 'asr'))
+    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(s, 'native'))).not.toBeNull()
+    expect(await cacheGet('m1', 'zh-CN', cacheIdentity(s, 'asr'))).toBeNull() // ASR didn't clobber native
+  })
+
+  it('ASR source: provider and source language are part of the identity', async () => {
+    const base = settingsFor({})
+    const asrBase: Settings = { ...base, asr: { ...base.asr, provider: 'deepgram', sourceLang: 'auto' } }
+    const otherProvider: Settings = { ...asrBase, asr: { ...asrBase.asr, provider: 'soniox' } }
+    const otherLang: Settings = { ...asrBase, asr: { ...asrBase.asr, sourceLang: 'en' } }
+    expect(cacheIdentity(otherProvider, 'asr')).not.toBe(cacheIdentity(asrBase, 'asr'))
+    expect(cacheIdentity(otherLang, 'asr')).not.toBe(cacheIdentity(asrBase, 'asr'))
+  })
+
+  it('native source: the ASR provider is irrelevant (no needless re-run)', async () => {
+    const base = settingsFor({})
+    const deepgram: Settings = { ...base, asr: { ...base.asr, provider: 'deepgram' } }
+    const soniox: Settings = { ...base, asr: { ...base.asr, provider: 'soniox' } }
+    expect(cacheIdentity(soniox, 'native')).toBe(cacheIdentity(deepgram, 'native'))
   })
 })

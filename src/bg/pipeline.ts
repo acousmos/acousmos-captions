@@ -33,7 +33,7 @@ export function attachPort(port: chrome.runtime.Port, req: JobRequest): void {
     const settings = await loadSettings()
     // Same identity as the cache, so a port can't attach to a job that's running
     // under a different translator or glossary than the current settings.
-    const key = `${req.mediaId}:${settings.llm.targetLang}:${cacheIdentity(settings)}`
+    const key = `${req.mediaId}:${settings.llm.targetLang}:${cacheIdentity(settings, sourceModeOf(req))}`
 
     const existing = jobs.get(key)
     if (existing && !req.force) {
@@ -82,7 +82,7 @@ async function runJob(
   const signal = job.abort.signal
 
   if (!req.force) {
-    const cached = await cacheGet(mediaId, targetLang, cacheIdentity(settings))
+    const cached = await cacheGet(mediaId, targetLang, cacheIdentity(settings, sourceModeOf(req)))
     if (cached) {
       job.snapshot = { phase: 'done', cues: cached.cues }
       broadcast(job, { kind: 'job/done', result: cached, fromCache: true })
@@ -203,7 +203,7 @@ async function runJob(
     llmProvider: settings.llm.provider,
     llmModel,
   }
-  await cachePut(result, cacheIdentity(settings))
+  await cachePut(result, cacheIdentity(settings, sourceModeOf(req)))
   job.snapshot = { phase: 'done', cues }
   broadcast(job, { kind: 'job/done', result, fromCache: false })
 
@@ -214,6 +214,12 @@ async function runJob(
       progress: { phase: 'done', errorKey: 'toast_translation_partial' },
     })
   }
+}
+
+/** Which caption source this request uses — the content side sends native cues
+ *  only when it found a usable subtitle track and ASR wasn't forced. */
+function sourceModeOf(req: JobRequest): 'native' | 'asr' {
+  return req.nativeUtterances && req.nativeUtterances.length > 0 ? 'native' : 'asr'
 }
 
 /** Per-provider model + base URL. Gemini's base URL is fixed inside its provider. */
