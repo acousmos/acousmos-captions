@@ -1,4 +1,4 @@
-import { cacheClear, cacheGet } from '../core/cache'
+import { cacheClear, cacheGet, purgeOldCaches } from '../core/cache'
 import { JOB_PORT_PREFIX, type JobRequest, type RuntimeRequest, type RuntimeResponse } from '../shared/messages'
 import { asrKeyFor, llmKeyFor, loadSettings } from '../shared/settings'
 import { initCapture, lookupMedia } from './capture'
@@ -7,6 +7,7 @@ import { attachPort } from './pipeline'
 
 initCapture()
 initDevReload()
+void purgeOldCaches()
 
 chrome.runtime.onMessage.addListener(
   (msg: RuntimeRequest, _sender, sendResponse: (res: RuntimeResponse) => void) => {

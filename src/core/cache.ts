@@ -7,6 +7,7 @@ import type { CaptionResult } from '../shared/types'
 
 // v2: bumped with the translation-alignment fix so results cached by the older
 // pipeline (which could shift a translation onto the next cue) are not served.
+const NAMESPACE = 'cap:'
 const PREFIX = 'cap:v2:'
 const INDEX_KEY = 'cap:index:v2'
 const MAX_ENTRIES = 60
@@ -31,9 +32,24 @@ export async function cachePut(result: CaptionResult): Promise<void> {
   await touch(key)
 }
 
+/** Remove every cached result and index, across ALL schema versions. */
 export async function cacheClear(): Promise<void> {
-  const index = await readIndex()
-  await chrome.storage.local.remove([...Object.keys(index), INDEX_KEY])
+  const all = await chrome.storage.local.get(null)
+  const keys = Object.keys(all).filter((k) => k.startsWith(NAMESPACE))
+  if (keys.length > 0) await chrome.storage.local.remove(keys)
+}
+
+/**
+ * Drop caches written by an older schema version (e.g. v1, which predates the
+ * translation-alignment fix). Run once at startup so a version bump doesn't leak
+ * the previous version's entries into storage forever.
+ */
+export async function purgeOldCaches(): Promise<void> {
+  const all = await chrome.storage.local.get(null)
+  const stale = Object.keys(all).filter(
+    (k) => k.startsWith(NAMESPACE) && !k.startsWith(PREFIX) && k !== INDEX_KEY,
+  )
+  if (stale.length > 0) await chrome.storage.local.remove(stale)
 }
 
 async function readIndex(): Promise<CacheIndex> {
