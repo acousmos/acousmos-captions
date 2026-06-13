@@ -5,10 +5,14 @@ import { glossaryForDeepgram, glossaryForPrompt, glossaryTerms } from '../shared
 import { getTranslateProvider, translateCues } from '../core/translate'
 import type { JobEvent, JobRequest } from '../shared/messages'
 import { asrKeyFor, llmKeyFor, loadSettings } from '../shared/settings'
-import { JobError, type CaptionResult, type Cue, type JobPhase } from '../shared/types'
-import { fetchAudio } from './audio'
+import { JobError, type CaptionResult, type Cue, type JobPhase, type Utterance } from '../shared/types'
+import { fetchAudioWindows } from './audio'
 import { lookupMedia } from './capture'
 import { jobEnded, jobStarted } from './keepalive'
+
+/** Audio window size (seconds). Smaller = faster first captions, more API
+ *  round-trips. ~3 min balances both for typical talk-length videos. */
+const WINDOW_SEC = 180
 
 /**
  * One job per (mediaId, targetLang). Multiple ports (e.g. the same video
@@ -89,52 +93,69 @@ async function runJob(
   const llmKey = llmKeyFor(settings)
   if (!llmKey) throw new JobError('toast_no_llm_key')
 
-  // 1) Audio
   setPhase(job, 'fetching_audio')
   const captured = await lookupMedia(mediaId)
   if (!captured) throw new JobError('toast_need_play')
-  const audio = await fetchAudio(captured, signal)
 
-  // 2) ASR — bias recognition toward the glossary (Deepgram caps keyterms
-  // tighter than Soniox's context, so use the trimmed list there).
-  setPhase(job, 'transcribing')
   const asr = getAsrProvider(settings.asr.provider)
   const terms =
     settings.asr.provider === 'deepgram'
       ? glossaryForDeepgram(settings.asr.customTerms)
       : glossaryTerms(settings.asr.customTerms)
-  const utterances = await asr.transcribe(audio, {
-    key: asrKey,
-    sourceLang: settings.asr.sourceLang,
-    terms,
-    signal,
-  })
-  if (utterances.length === 0) throw new JobError('err_no_speech')
-
-  // 3) Cues — source lines render immediately, translation patches in.
-  const cues = buildCues(utterances)
-  job.snapshot = { phase: 'translating', cues }
-  broadcast(job, { kind: 'job/utterances', cues })
-  setPhase(job, 'translating')
-
-  // 4) Translation
   const provider = getTranslateProvider(settings.llm.provider)
   const isOpenAi = settings.llm.provider === 'openai'
-  const translated = await translateCues(cues, provider, {
-    key: llmKey,
-    model: isOpenAi ? settings.llm.openaiModel : settings.llm.anthropicModel,
-    baseUrl: isOpenAi ? settings.llm.openaiBaseUrl : undefined,
-    targetLang,
-    glossary: glossaryForPrompt(settings.asr.customTerms),
-    signal,
-    onBatch: (ids, texts) => {
-      for (let k = 0; k < ids.length; k++) {
-        const cue = cues[ids[k]!]
-        if (cue) cue.tgt = texts[k]!
-      }
-      broadcast(job, { kind: 'job/translated', ids, texts })
-    },
-  })
+  const glossary = glossaryForPrompt(settings.asr.customTerms)
+
+  // Process the audio in time windows: transcribe + translate each window and
+  // stream its cues so captions for the start of a long video appear within
+  // seconds, and the rest fills in (or stops early if the viewer leaves).
+  const cues: Cue[] = []
+  let firstWindow = true
+  for await (const win of fetchAudioWindows(captured, WINDOW_SEC, signal)) {
+    if (signal.aborted) return
+    if (firstWindow) setPhase(job, 'transcribing')
+
+    const utterances = await asr.transcribe(win.payload, {
+      key: asrKey,
+      sourceLang: settings.asr.sourceLang,
+      terms,
+      signal,
+    })
+    const windowCues = buildCues(offsetUtterances(utterances, win.startTime)).map((c, i) => ({
+      ...c,
+      id: cues.length + i,
+    }))
+    cues.push(...windowCues)
+
+    // Source lines render immediately (cumulative); translation patches in.
+    job.snapshot = { phase: 'translating', cues }
+    broadcast(job, { kind: 'job/utterances', cues })
+    if (firstWindow) setPhase(job, 'translating')
+
+    await translateCues(windowCues, provider, {
+      key: llmKey,
+      model: isOpenAi ? settings.llm.openaiModel : settings.llm.anthropicModel,
+      baseUrl: isOpenAi ? settings.llm.openaiBaseUrl : undefined,
+      targetLang,
+      glossary,
+      signal,
+      onBatch: (ids, texts) => {
+        for (let k = 0; k < ids.length; k++) {
+          const cue = cues[ids[k]!]
+          if (cue) cue.tgt = texts[k]!
+        }
+        broadcast(job, { kind: 'job/translated', ids, texts })
+      },
+    })
+
+    firstWindow = false
+    broadcast(job, {
+      kind: 'job/progress',
+      progress: { phase: 'translating', ratio: (win.index + 1) / win.total },
+    })
+  }
+
+  if (cues.length === 0) throw new JobError('err_no_speech')
 
   const result: CaptionResult = {
     mediaId,
@@ -149,13 +170,24 @@ async function runJob(
   job.snapshot = { phase: 'done', cues }
   broadcast(job, { kind: 'job/done', result, fromCache: false })
 
-  if (translated.size < cues.length) {
+  if (cues.some((c) => !c.tgt)) {
     // Partial translation is surfaced, not fatal — the UI shows originals.
     broadcast(job, {
       kind: 'job/progress',
       progress: { phase: 'done', errorKey: 'toast_translation_partial' },
     })
   }
+}
+
+/** Shift ASR timestamps from window-relative to absolute video time. */
+function offsetUtterances(utterances: Utterance[], offset: number): Utterance[] {
+  if (offset === 0) return utterances
+  return utterances.map((u) => ({
+    start: u.start + offset,
+    end: u.end + offset,
+    text: u.text,
+    words: u.words?.map((w) => ({ text: w.text, start: w.start + offset, end: w.end + offset })),
+  }))
 }
 
 function setPhase(job: RunningJob, phase: JobPhase): void {

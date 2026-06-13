@@ -104,16 +104,24 @@ export class PlayerController {
     if (this.disposed) return
     switch (ev.kind) {
       case 'job/progress': {
-        if (ev.progress.errorKey) toast(t(ev.progress.errorKey))
-        else if (ev.progress.phase === 'fetching_audio') this.setPill('pill_capturing', 'working')
-        else if (ev.progress.phase === 'transcribing') this.setPill('pill_transcribing', 'working')
-        else if (ev.progress.phase === 'translating') this.setPill('pill_translating', 'working')
+        if (ev.progress.errorKey) {
+          toast(t(ev.progress.errorKey))
+        } else if (ev.progress.ratio !== undefined && this.cues.length > 0 && ev.progress.ratio < 1) {
+          // Captions are already showing; the rest of a long video streams in.
+          this.setPillRaw(`${t('pill_idle')} ${Math.round(ev.progress.ratio * 100)}%`, 'live')
+        } else if (this.cues.length === 0) {
+          if (ev.progress.phase === 'fetching_audio') this.setPill('pill_capturing', 'working')
+          else if (ev.progress.phase === 'transcribing') this.setPill('pill_transcribing', 'working')
+          else if (ev.progress.phase === 'translating') this.setPill('pill_translating', 'working')
+        }
         break
       }
       case 'job/utterances': {
         this.cues = ev.cues
         this.ensureOverlay().setCues(this.cues)
-        this.setPill('pill_on', 'live') // English is on screen; translation streams in
+        // Captions are on screen but more may still be processing; the
+        // percentage from job/progress takes over until job/done.
+        this.setPillRaw(t('pill_idle'), 'live')
         this.notifyReady()
         break
       }
@@ -185,8 +193,12 @@ export class PlayerController {
   }
 
   private setPill(labelKey: string, state: State): void {
+    this.setPillRaw(t(labelKey), state)
+  }
+
+  private setPillRaw(text: string, state: State): void {
     this.state = state
-    this.pill.textContent = t(labelKey)
+    this.pill.textContent = text
     this.pill.dataset['state'] = state
   }
 

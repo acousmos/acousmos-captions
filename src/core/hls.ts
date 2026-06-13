@@ -25,6 +25,8 @@ export interface MasterPlaylist {
 export interface MediaPlaylist {
   initUri?: string
   segmentUris: string[]
+  /** Per-segment duration in seconds, parallel to segmentUris. */
+  segmentDurations: number[]
   totalDuration: number
 }
 
@@ -89,7 +91,9 @@ export function parseMaster(text: string, baseUrl: string): MasterPlaylist {
 export function parseMedia(text: string, baseUrl: string): MediaPlaylist {
   let initUri: string | undefined
   const segmentUris: string[] = []
+  const segmentDurations: number[] = []
   let totalDuration = 0
+  let pendingDur = 0
   let expectSegment = false
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim()
@@ -99,14 +103,53 @@ export function parseMedia(text: string, baseUrl: string): MediaPlaylist {
       if (attrs['URI']) initUri = resolveUrl(baseUrl, attrs['URI'])
     } else if (line.startsWith('#EXTINF:')) {
       const dur = parseFloat(line.slice('#EXTINF:'.length))
-      if (Number.isFinite(dur)) totalDuration += dur
+      pendingDur = Number.isFinite(dur) ? dur : 0
       expectSegment = true
     } else if (!line.startsWith('#') && expectSegment) {
       segmentUris.push(resolveUrl(baseUrl, line))
+      segmentDurations.push(pendingDur)
+      totalDuration += pendingDur
+      pendingDur = 0
       expectSegment = false
     }
   }
-  return { initUri, segmentUris, totalDuration }
+  return { initUri, segmentUris, segmentDurations, totalDuration }
+}
+
+export interface SegmentWindow {
+  /** Inclusive start index into segmentUris. */
+  startIndex: number
+  /** Exclusive end index into segmentUris. */
+  endIndex: number
+  /** Absolute time offset (seconds) of this window's first segment. */
+  startTime: number
+}
+
+/**
+ * Group segments into ~`windowSec` windows so the pipeline can transcribe and
+ * show captions for the start of a long video without waiting for the whole
+ * thing. Each window holds at least one segment; the last is whatever remains.
+ */
+export function planWindows(durations: number[], windowSec: number): SegmentWindow[] {
+  const windows: SegmentWindow[] = []
+  let startIndex = 0
+  let startTime = 0
+  let acc = 0
+  let elapsed = 0
+  for (let i = 0; i < durations.length; i++) {
+    acc += durations[i] ?? 0
+    elapsed += durations[i] ?? 0
+    if (acc >= windowSec) {
+      windows.push({ startIndex, endIndex: i + 1, startTime })
+      startIndex = i + 1
+      startTime = elapsed
+      acc = 0
+    }
+  }
+  if (startIndex < durations.length) {
+    windows.push({ startIndex, endIndex: durations.length, startTime })
+  }
+  return windows
 }
 
 export interface AudioSourcePick {

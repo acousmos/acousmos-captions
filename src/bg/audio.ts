@@ -1,35 +1,82 @@
-import { isMasterPlaylist, mimeForPlaylist, parseMaster, parseMedia, pickAudioSource } from '../core/hls'
+import {
+  isMasterPlaylist,
+  mimeForPlaylist,
+  parseMaster,
+  parseMedia,
+  pickAudioSource,
+  planWindows,
+  type MediaPlaylist,
+} from '../core/hls'
 import { JobError, type AudioPayload } from '../shared/types'
 import type { CapturedMedia } from './capture'
 
 const SEGMENT_CONCURRENCY = 4
 const MAX_AUDIO_BYTES = 256 * 1024 * 1024
 
+export interface AudioWindow {
+  index: number
+  total: number
+  /** Absolute time offset (seconds) to add to this window's ASR timestamps. */
+  startTime: number
+  payload: AudioPayload
+}
+
+interface HlsPlan {
+  playlist: MediaPlaylist
+  kind: 'audio' | 'muxed'
+  initBytes: Uint8Array | null
+}
+
 /**
- * Assemble the audio payload for a captured media entry. Preference order:
- * HLS audio-only rendition (smallest, exactly what ASR needs) → lowest muxed
- * HLS variant → smallest progressive mp4.
+ * Yield audio in time-ordered windows so the pipeline can transcribe and show
+ * captions for the beginning of a long video quickly, and stop early (the job
+ * aborts on disconnect) instead of processing all 26 minutes a viewer may
+ * never watch. Progressive HLS path; progressive mp4 isn't chunkable, so it
+ * yields a single window.
  */
-export async function fetchAudio(cap: CapturedMedia, signal: AbortSignal): Promise<AudioPayload> {
+export async function* fetchAudioWindows(
+  cap: CapturedMedia,
+  windowSec: number,
+  signal: AbortSignal,
+): AsyncGenerator<AudioWindow> {
+  let plan: HlsPlan | null = null
   if (cap.masterUrl) {
     try {
-      return await fetchFromHls(cap.masterUrl, signal)
+      plan = await resolveHlsPlan(cap.masterUrl, signal)
     } catch (e) {
+      // Playlist resolution failed before any window was emitted — fall back
+      // to mp4 if we captured one; otherwise surface the error.
       if (signal.aborted || cap.mp4.length === 0) throw e
-      // fall through to mp4
     }
   }
+
+  if (plan) {
+    const { playlist, kind, initBytes } = plan
+    const mime = mimeForPlaylist(playlist, kind)
+    const windows = planWindows(playlist.segmentDurations, windowSec)
+    for (let w = 0; w < windows.length; w++) {
+      if (signal.aborted) return
+      const win = windows[w]!
+      const uris = playlist.segmentUris.slice(win.startIndex, win.endIndex)
+      const segBytes = await fetchSegments(uris, signal)
+      const payload = concatPayload(initBytes, segBytes, mime)
+      yield { index: w, total: windows.length, startTime: win.startTime, payload }
+    }
+    return
+  }
+
   if (cap.mp4.length > 0) {
     const smallest = [...cap.mp4].sort((a, b) => a.pixels - b.pixels)[0]!
     const bytes = await fetchBytes(smallest.url, signal)
-    return { bytes, mime: 'video/mp4' }
+    yield { index: 0, total: 1, startTime: 0, payload: { bytes, mime: 'video/mp4' } }
+    return
   }
+
   throw new JobError('toast_no_media')
 }
 
-async function fetchFromHls(playlistUrl: string, signal: AbortSignal): Promise<AudioPayload> {
+async function resolveHlsPlan(playlistUrl: string, signal: AbortSignal): Promise<HlsPlan> {
   const masterText = await fetchText(playlistUrl, signal)
-
   let mediaUrl = playlistUrl
   let kind: 'audio' | 'muxed' = 'muxed'
   let mediaText = masterText
@@ -40,11 +87,13 @@ async function fetchFromHls(playlistUrl: string, signal: AbortSignal): Promise<A
     kind = pick.kind
     mediaText = await fetchText(mediaUrl, signal)
   }
-
   const playlist = parseMedia(mediaText, mediaUrl)
   if (playlist.segmentUris.length === 0) throw new JobError('err_audio_fetch', 'no segments in playlist')
+  const initBytes = playlist.initUri ? await fetchBytes(playlist.initUri, signal) : null
+  return { playlist, kind, initBytes }
+}
 
-  const uris = playlist.initUri ? [playlist.initUri, ...playlist.segmentUris] : playlist.segmentUris
+async function fetchSegments(uris: string[], signal: AbortSignal): Promise<Uint8Array[]> {
   const parts: Uint8Array[] = new Array(uris.length)
   let total = 0
   let next = 0
@@ -58,14 +107,19 @@ async function fetchFromHls(playlistUrl: string, signal: AbortSignal): Promise<A
     }
   }
   await Promise.all(Array.from({ length: Math.min(SEGMENT_CONCURRENCY, uris.length) }, worker))
+  return parts
+}
 
-  const out = new Uint8Array(total)
+function concatPayload(init: Uint8Array | null, parts: Uint8Array[], mime: string): AudioPayload {
+  const all = init ? [init, ...parts] : parts
+  const total = all.reduce((n, p) => n + p.byteLength, 0)
+  const bytes = new Uint8Array(total)
   let offset = 0
-  for (const p of parts) {
-    out.set(p, offset)
+  for (const p of all) {
+    bytes.set(p, offset)
     offset += p.byteLength
   }
-  return { bytes: out, mime: mimeForPlaylist(playlist, kind) }
+  return { bytes, mime }
 }
 
 async function fetchText(url: string, signal: AbortSignal): Promise<string> {
