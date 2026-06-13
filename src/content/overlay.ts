@@ -9,10 +9,6 @@ import type { Cue } from '../shared/types'
  * source / target) and placement (over the video, or docked below it).
  */
 export class CaptionOverlay {
-  /** Shared hidden node for measuring REAL line wrapping (respects word breaks,
-   *  unlike a canvas one-line measure). Lazily created, one per document. */
-  private static measureEl: HTMLSpanElement | null = null
-
   private root: HTMLDivElement
   private srcEl: HTMLDivElement
   private tgtEl: HTMLDivElement
@@ -156,71 +152,48 @@ export class CaptionOverlay {
   }
 
   /**
-   * Size one caption box to hug its text:
-   *  - fits on one line within the player → keep one line (box = text width);
-   *  - otherwise find the SMALLEST width that still wraps into the fewest lines,
-   *    so the box hugs the text (no wide empty margins) and `text-wrap: balance`
-   *    (in CSS) evens the lines (no long-then-short orphan).
-   * Wrapping is measured on a hidden node at real widths, so it respects actual
-   * word boundaries rather than estimating from a single-line width.
+   * Size one caption box so its background hugs the TEXT, not the layout width:
+   *  - one line → keep `width: auto` (inline-block already hugs);
+   *  - multiple lines → measure the real wrapped lines (with `text-wrap: balance`
+   *    already applied via CSS) and shrink the box to the longest actual line.
+   * Measuring the rendered span directly (Range line rects) is the only way to get
+   * the post-balance line widths; shrinking re-runs balance, so we measure again
+   * once so the final width matches the final longest line (no wide side margins,
+   * no per-line bars — still one box per language).
    */
   private fitBox(span: HTMLSpanElement): void {
-    const text = span.textContent ?? ''
-    if (!text) return
-    const m = CaptionOverlay.getMeasureEl(span)
-    m.textContent = text
-
-    const padH = 22 // .acap-text horizontal padding (≈ 2 × 11px), added outside the content width
-    const availContent = Math.max(40, this.containerWidth * 0.92 - padH)
-    span.style.maxWidth = `${Math.round(availContent + padH)}px`
-
-    m.style.whiteSpace = 'nowrap'
-    m.style.width = 'auto'
-    const oneLine = m.offsetWidth
-    const lineH = m.offsetHeight
-    m.style.whiteSpace = 'pre-wrap'
-    if (lineH === 0 || oneLine <= availContent) {
-      span.style.width = 'auto' // one line — hug it
-      return
-    }
-
-    const targetLines = Math.ceil(oneLine / availContent)
-    let lo = Math.ceil(oneLine / targetLines)
-    let hi = Math.round(availContent)
-    let best = hi
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1
-      m.style.width = `${mid}px`
-      const lines = Math.round(m.offsetHeight / lineH)
-      if (lines <= targetLines) {
-        best = mid
-        hi = mid - 1
-      } else {
-        lo = mid + 1
+    if (!span.textContent) return
+    span.style.maxWidth = `${Math.max(80, Math.round(this.containerWidth * 0.92))}px`
+    span.style.width = 'auto'
+    for (let pass = 0; pass < 2; pass++) {
+      const widths = this.lineWidths(span)
+      if (widths.length <= 1) {
+        span.style.width = 'auto' // single line — already hugs
+        return
       }
+      span.style.width = `${Math.ceil(Math.max(...widths))}px`
     }
-    span.style.width = `${best}px` // content width; CSS padding + balance do the rest
   }
 
-  /** Hidden measurer that mirrors `span`'s font so wrapping matches the render. */
-  private static getMeasureEl(span: HTMLSpanElement): HTMLSpanElement {
-    let m = CaptionOverlay.measureEl
-    if (!m) {
-      m = document.createElement('span')
-      m.setAttribute('aria-hidden', 'true')
-      m.style.cssText =
-        'position:absolute;left:-99999px;top:0;visibility:hidden;pointer-events:none;margin:0;border:0;padding:0;white-space:pre-wrap;'
-      document.body.appendChild(m)
-      CaptionOverlay.measureEl = m
+  /** Width of each rendered line of `span`'s text (groups client rects by row, so
+   *  a mixed CJK/Latin line counts once at its full extent). */
+  private lineWidths(span: HTMLSpanElement): number[] {
+    if (!span.firstChild) return []
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    const rows = new Map<number, { left: number; right: number }>()
+    for (const r of range.getClientRects()) {
+      if (r.width === 0) continue
+      const key = Math.round(r.top)
+      const row = rows.get(key)
+      if (row) {
+        row.left = Math.min(row.left, r.left)
+        row.right = Math.max(row.right, r.right)
+      } else {
+        rows.set(key, { left: r.left, right: r.right })
+      }
     }
-    const cs = getComputedStyle(span)
-    m.style.fontFamily = cs.fontFamily
-    m.style.fontSize = cs.fontSize
-    m.style.fontWeight = cs.fontWeight
-    m.style.letterSpacing = cs.letterSpacing
-    m.style.lineHeight = cs.lineHeight
-    m.style.wordBreak = cs.wordBreak
-    return m
+    return [...rows.values()].map((r) => r.right - r.left)
   }
 
   private observeResize(): void {
