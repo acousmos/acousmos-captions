@@ -67,10 +67,23 @@ input[type="text"], input[type="password"], select {
 input:focus, select:focus { border-color: var(--accent); }
 
 input[type="range"] { flex: 1; accent-color: var(--accent); }
-.val { width: 48px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
-/* Range start, shown left of the slider so the right value reads as "current",
-   not a total. */
-.val-min { width: 36px; text-align: right; opacity: 0.55; }
+/* Current value, shown right after the label (prominent) so the slider's two
+   ends can show the range min/max instead. */
+.val-cur {
+  width: 52px;
+  text-align: right;
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* Range endpoints flanking the track (min left, max right), faded. */
+.val-end {
+  width: 38px;
+  text-align: center;
+  color: var(--muted);
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
 
 .keyline { flex: 1; display: flex; gap: 8px; }
 .keyline input { flex: 1; }

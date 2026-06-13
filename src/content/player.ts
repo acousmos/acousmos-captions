@@ -28,6 +28,7 @@ export class PlayerController {
   private enabled = true
   private repositionScheduled = false
   private rootResizeObserver: ResizeObserver | null = null
+  private hideTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor(
     private video: HTMLVideoElement,
@@ -61,6 +62,11 @@ export class PlayerController {
     document.addEventListener('fullscreenchange', this.onFullscreenChange)
     this.rootResizeObserver = new ResizeObserver(this.reposition)
     this.rootResizeObserver.observe(this.container)
+    // Auto-hide the pill during playback; reveal on mouse movement over the
+    // player (or the pill), like native video controls.
+    this.container.addEventListener('mousemove', this.revealPill, { passive: true })
+    this.root.addEventListener('mousemove', this.revealPill, { passive: true })
+    this.scheduleHide()
   }
 
   static mediaIdFor(video: HTMLVideoElement): { id: string } | 'gif' | null {
@@ -118,9 +124,11 @@ export class PlayerController {
 
   dispose(): void {
     this.disposed = true
+    clearTimeout(this.hideTimer)
     window.removeEventListener('scroll', this.reposition, { capture: true } as EventListenerOptions)
     window.removeEventListener('resize', this.reposition)
     document.removeEventListener('fullscreenchange', this.onFullscreenChange)
+    this.container.removeEventListener('mousemove', this.revealPill)
     this.rootResizeObserver?.disconnect()
     this.port?.disconnect()
     this.overlay?.dispose()
@@ -284,6 +292,22 @@ export class PlayerController {
     this.state = state
     this.pill.textContent = text
     this.pill.dataset['state'] = state
+    this.revealPill() // surface state changes, then re-arm auto-hide
+  }
+
+  /** Show the pill and (re)start the idle auto-hide timer. */
+  private revealPill = (): void => {
+    this.root.classList.remove('acap-dim')
+    this.scheduleHide()
+  }
+
+  private scheduleHide(): void {
+    clearTimeout(this.hideTimer)
+    this.hideTimer = setTimeout(() => {
+      // Keep it up while a job runs or the menu is open.
+      if (this.disposed || this.state === 'working' || this.menu) return
+      this.root.classList.add('acap-dim')
+    }, 3000)
   }
 
   // --- menu ---
@@ -326,6 +350,7 @@ export class PlayerController {
 
     this.root.appendChild(menu)
     this.menu = menu
+    this.revealPill() // keep the pill visible while the menu is open
     this.positionMenu(menu)
     // Close on any click outside the menu. If that click is on our own pill,
     // swallow it so onPillClick doesn't immediately reopen — second click on
@@ -402,5 +427,6 @@ export class PlayerController {
     }
     this.menu?.remove()
     this.menu = null
+    this.scheduleHide()
   }
 }
