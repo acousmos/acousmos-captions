@@ -5,12 +5,12 @@ import type { CaptionResult } from '../shared/types'
  * (or reopening the tab) must not re-pay ASR + translation.
  */
 
-// v3: cache identity now includes the LLM engine (provider@model), so switching
-// translator re-runs and each variant is cached separately for comparison.
-// (v2 added the translation-alignment fix; v1 predated it.)
+// v4: cache identity now includes the OpenAI-compatible base URL too (same model
+// id at a different endpoint is a different engine). v3 added provider@model; v2
+// added the translation-alignment fix; v1 predated it. Old versions self-purge.
 const NAMESPACE = 'cap:'
-const PREFIX = 'cap:v3:'
-const INDEX_KEY = 'cap:index:v3'
+const PREFIX = 'cap:v4:'
+const INDEX_KEY = 'cap:index:v4'
 const MAX_ENTRIES = 60
 
 type CacheIndex = Record<string, number> // key -> lastUsed epoch ms

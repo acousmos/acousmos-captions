@@ -115,9 +115,17 @@ export function llmModelFor(s: Settings): string {
 }
 
 /** Identifies which engine produced a cached result, so switching provider/model
- *  re-translates (and keeps each variant cached separately for comparison). */
+ *  re-translates (and keeps each variant cached separately for comparison). For
+ *  the OpenAI-compatible provider the base URL is part of the identity too — the
+ *  same model id at a different endpoint (OpenAI vs DeepSeek vs a local server)
+ *  is a different engine. */
 export function llmCacheTag(s: Settings): string {
-  return `${s.llm.provider}@${llmModelFor(s)}`
+  const model = llmModelFor(s)
+  if (s.llm.provider === 'openai') {
+    const base = s.llm.openaiBaseUrl.trim().replace(/\/+$/, '')
+    return `openai@${model}@${base}`
+  }
+  return `${s.llm.provider}@${model}`
 }
 
 export function onSettingsChanged(cb: (s: Settings) => void): void {

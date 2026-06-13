@@ -31,7 +31,9 @@ const jobs = new Map<string, RunningJob>()
 export function attachPort(port: chrome.runtime.Port, req: JobRequest): void {
   void (async () => {
     const settings = await loadSettings()
-    const key = `${req.mediaId}:${settings.llm.targetLang}`
+    // Same identity as the cache, so a port can't attach to a job that's running
+    // under a different translator than the current settings.
+    const key = `${req.mediaId}:${settings.llm.targetLang}:${llmCacheTag(settings)}`
 
     const existing = jobs.get(key)
     if (existing && !req.force) {
