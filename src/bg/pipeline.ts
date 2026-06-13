@@ -6,7 +6,7 @@ import { getTranslateProvider, translateCues } from '../core/translate'
 import type { JobEvent, JobRequest } from '../shared/messages'
 import { asrKeyFor, llmKeyFor, loadSettings } from '../shared/settings'
 import { JobError, type CaptionResult, type Cue, type JobPhase, type Utterance } from '../shared/types'
-import { fetchAudioWindows } from './audio'
+import { resolveAudioPlans, type AudioPlan } from './audio'
 import { lookupMedia } from './capture'
 import { jobEnded, jobStarted } from './keepalive'
 
@@ -106,32 +106,20 @@ async function runJob(
   const isOpenAi = settings.llm.provider === 'openai'
   const glossary = glossaryForPrompt(settings.asr.customTerms)
 
-  // Process the audio in time windows: transcribe + translate each window and
-  // stream its cues so captions for the start of a long video appear within
-  // seconds, and the rest fills in (or stops early if the viewer leaves).
-  const cues: Cue[] = []
-  let firstWindow = true
-  for await (const win of fetchAudioWindows(captured, WINDOW_SEC, signal)) {
-    if (signal.aborted) return
-    if (firstWindow) setPhase(job, 'transcribing')
+  const transcribe = (payload: Parameters<typeof asr.transcribe>[0]) =>
+    asr.transcribe(payload, { key: asrKey, sourceLang: settings.asr.sourceLang, terms, signal })
 
-    const utterances = await asr.transcribe(win.payload, {
-      key: asrKey,
-      sourceLang: settings.asr.sourceLang,
-      terms,
-      signal,
-    })
-    const windowCues = buildCues(offsetUtterances(utterances, win.startTime)).map((c, i) => ({
+  const cues: Cue[] = []
+
+  // Emit a window's cues (cumulative) and translate them in place.
+  const processWindow = async (utterances: Utterance[], startTime: number): Promise<void> => {
+    const windowCues = buildCues(offsetUtterances(utterances, startTime)).map((c, i) => ({
       ...c,
       id: cues.length + i,
     }))
     cues.push(...windowCues)
-
-    // Source lines render immediately (cumulative); translation patches in.
     job.snapshot = { phase: 'translating', cues }
-    broadcast(job, { kind: 'job/utterances', cues })
-    if (firstWindow) setPhase(job, 'translating')
-
+    broadcast(job, { kind: 'job/utterances', cues }) // source lines render immediately
     await translateCues(windowCues, provider, {
       key: llmKey,
       model: isOpenAi ? settings.llm.openaiModel : settings.llm.anthropicModel,
@@ -147,12 +135,42 @@ async function runJob(
         broadcast(job, { kind: 'job/translated', ids, texts })
       },
     })
+  }
 
-    firstWindow = false
-    broadcast(job, {
-      kind: 'job/progress',
-      progress: { phase: 'translating', ratio: (win.index + 1) / win.total },
-    })
+  // Pick the first audio source the ASR backend actually accepts (some X
+  // renditions don't decode), then process its windows progressively.
+  setPhase(job, 'transcribing')
+  const plans = await resolveAudioPlans(captured, WINDOW_SEC, signal)
+  let active: AudioPlan | null = null
+  let firstUtterances: Utterance[] = []
+  let lastErr: unknown
+  for (const plan of plans) {
+    if (signal.aborted) return
+    try {
+      const utts = await transcribe(await plan.getWindow(0))
+      active = plan
+      firstUtterances = utts
+      break
+    } catch (e) {
+      if (signal.aborted) throw e
+      if (e instanceof JobError && e.key === 'err_asr_auth') throw e // a bad key won't improve
+      lastErr = e
+      console.debug(`[acousmos-captions] audio source "${plan.label}" rejected:`, (e as Error).message)
+      // try the next candidate source
+    }
+  }
+  if (!active) throw lastErr instanceof Error ? lastErr : new JobError('err_audio_fetch')
+  console.debug(`[acousmos-captions] using audio source "${active.label}" (${active.total} window(s))`)
+
+  setPhase(job, 'translating')
+  await processWindow(firstUtterances, active.startTimes[0] ?? 0)
+  broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: 1 / active.total } })
+
+  for (let i = 1; i < active.total; i++) {
+    if (signal.aborted) return
+    const utts = await transcribe(await active.getWindow(i))
+    await processWindow(utts, active.startTimes[i] ?? 0)
+    broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: (i + 1) / active.total } })
   }
 
   if (cues.length === 0) throw new JobError('err_no_speech')

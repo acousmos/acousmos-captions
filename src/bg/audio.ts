@@ -3,9 +3,9 @@ import {
   mimeForPlaylist,
   parseMaster,
   parseMedia,
-  pickAudioSource,
   planWindows,
   type MediaPlaylist,
+  type SegmentWindow,
 } from '../core/hls'
 import { JobError, type AudioPayload } from '../shared/types'
 import type { CapturedMedia } from './capture'
@@ -13,84 +13,101 @@ import type { CapturedMedia } from './capture'
 const SEGMENT_CONCURRENCY = 4
 const MAX_AUDIO_BYTES = 256 * 1024 * 1024
 
-export interface AudioWindow {
-  index: number
-  total: number
-  /** Absolute time offset (seconds) to add to this window's ASR timestamps. */
-  startTime: number
-  payload: AudioPayload
-}
-
-interface HlsPlan {
-  playlist: MediaPlaylist
-  kind: 'audio' | 'muxed'
-  initBytes: Uint8Array | null
-}
-
 /**
- * Yield audio in time-ordered windows so the pipeline can transcribe and show
- * captions for the beginning of a long video quickly, and stop early (the job
- * aborts on disconnect) instead of processing all 26 minutes a viewer may
- * never watch. Progressive HLS path; progressive mp4 isn't chunkable, so it
- * yields a single window.
+ * A candidate audio source. The pipeline transcribes window 0 of each plan in
+ * preference order until one is accepted by the ASR backend, then uses that
+ * plan for the rest of the video. This makes us resilient to a given X
+ * rendition the recognizer can't decode: HLS audio-only (smallest) is tried
+ * first, then the lowest muxed HLS variant, then the progressive mp4 (which is
+ * a standard container the ASR reliably accepts) as a non-chunked safety net.
  */
-export async function* fetchAudioWindows(
+export interface AudioPlan {
+  label: string
+  total: number
+  /** Absolute time offset (seconds) for each window's ASR timestamps. */
+  startTimes: number[]
+  getWindow(index: number): Promise<AudioPayload>
+}
+
+export async function resolveAudioPlans(
   cap: CapturedMedia,
   windowSec: number,
   signal: AbortSignal,
-): AsyncGenerator<AudioWindow> {
-  let plan: HlsPlan | null = null
+): Promise<AudioPlan[]> {
+  const plans: AudioPlan[] = []
+
   if (cap.masterUrl) {
     try {
-      plan = await resolveHlsPlan(cap.masterUrl, signal)
+      const masterText = await fetchText(cap.masterUrl, signal)
+      if (isMasterPlaylist(masterText)) {
+        const master = parseMaster(masterText, cap.masterUrl)
+        const audio = master.audio.find((a) => a.isDefault) ?? master.audio[0]
+        if (audio) await pushHlsPlan(plans, 'hls-audio', audio.uri, 'audio', windowSec, signal)
+        const variant = [...master.variants].sort((a, b) => a.bandwidth - b.bandwidth)[0]
+        if (variant) await pushHlsPlan(plans, 'hls-muxed', variant.uri, 'muxed', windowSec, signal)
+      } else {
+        // The captured URL was already a media playlist.
+        await pushHlsPlan(plans, 'hls', cap.masterUrl, 'muxed', windowSec, signal)
+      }
     } catch (e) {
-      // Playlist resolution failed before any window was emitted — fall back
-      // to mp4 if we captured one; otherwise surface the error.
-      if (signal.aborted || cap.mp4.length === 0) throw e
+      if (signal.aborted) throw e
+      // Master fetch/parse failed — rely on the mp4 plan below.
     }
-  }
-
-  if (plan) {
-    const { playlist, kind, initBytes } = plan
-    const mime = mimeForPlaylist(playlist, kind)
-    const windows = planWindows(playlist.segmentDurations, windowSec)
-    for (let w = 0; w < windows.length; w++) {
-      if (signal.aborted) return
-      const win = windows[w]!
-      const uris = playlist.segmentUris.slice(win.startIndex, win.endIndex)
-      const segBytes = await fetchSegments(uris, signal)
-      const payload = concatPayload(initBytes, segBytes, mime)
-      yield { index: w, total: windows.length, startTime: win.startTime, payload }
-    }
-    return
   }
 
   if (cap.mp4.length > 0) {
     const smallest = [...cap.mp4].sort((a, b) => a.pixels - b.pixels)[0]!
-    const bytes = await fetchBytes(smallest.url, signal)
-    yield { index: 0, total: 1, startTime: 0, payload: { bytes, mime: 'video/mp4' } }
-    return
+    plans.push({
+      label: 'mp4',
+      total: 1,
+      startTimes: [0],
+      getWindow: async () => ({ bytes: await fetchBytes(smallest.url, signal), mime: 'video/mp4' }),
+    })
   }
 
-  throw new JobError('toast_no_media')
+  if (plans.length === 0) throw new JobError('toast_no_media')
+  return plans
 }
 
-async function resolveHlsPlan(playlistUrl: string, signal: AbortSignal): Promise<HlsPlan> {
-  const masterText = await fetchText(playlistUrl, signal)
-  let mediaUrl = playlistUrl
-  let kind: 'audio' | 'muxed' = 'muxed'
-  let mediaText = masterText
-  if (isMasterPlaylist(masterText)) {
-    const pick = pickAudioSource(parseMaster(masterText, playlistUrl))
-    if (!pick) throw new JobError('err_audio_fetch', 'master playlist has no renditions')
-    mediaUrl = pick.uri
-    kind = pick.kind
-    mediaText = await fetchText(mediaUrl, signal)
+async function pushHlsPlan(
+  plans: AudioPlan[],
+  label: string,
+  mediaUrl: string,
+  kind: 'audio' | 'muxed',
+  windowSec: number,
+  signal: AbortSignal,
+): Promise<void> {
+  try {
+    plans.push(await buildHlsPlan(label, mediaUrl, kind, windowSec, signal))
+  } catch (e) {
+    if (signal.aborted) throw e
+    // Skip this rendition; another plan may still work.
   }
-  const playlist = parseMedia(mediaText, mediaUrl)
-  if (playlist.segmentUris.length === 0) throw new JobError('err_audio_fetch', 'no segments in playlist')
+}
+
+async function buildHlsPlan(
+  label: string,
+  mediaUrl: string,
+  kind: 'audio' | 'muxed',
+  windowSec: number,
+  signal: AbortSignal,
+): Promise<AudioPlan> {
+  const text = await fetchText(mediaUrl, signal)
+  const playlist: MediaPlaylist = parseMedia(text, mediaUrl)
+  if (playlist.segmentUris.length === 0) throw new JobError('err_audio_fetch', `${label}: no segments`)
   const initBytes = playlist.initUri ? await fetchBytes(playlist.initUri, signal) : null
-  return { playlist, kind, initBytes }
+  const mime = mimeForPlaylist(playlist, kind)
+  const windows: SegmentWindow[] = planWindows(playlist.segmentDurations, windowSec)
+  return {
+    label,
+    total: windows.length,
+    startTimes: windows.map((w) => w.startTime),
+    getWindow: async (index: number) => {
+      const win = windows[index]!
+      const segs = await fetchSegments(playlist.segmentUris.slice(win.startIndex, win.endIndex), signal)
+      return concatPayload(initBytes, segs, mime)
+    },
+  }
 }
 
 async function fetchSegments(uris: string[], signal: AbortSignal): Promise<Uint8Array[]> {
