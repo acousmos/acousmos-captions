@@ -153,9 +153,10 @@ export class CaptionOverlay {
     // to the original when its translation hasn't landed yet.
     const showSrc = mode !== 'target'
     const showTgt = mode !== 'source'
-    // Bilingual + source present + translation not yet in + job still running →
-    // show a placeholder so the empty Chinese row reads as "in progress".
-    const pending = showTgt && mode !== 'target' && !tgt && !!src && this.translating
+    // Translation not yet in + job still running → show a placeholder so the
+    // empty target row reads as "in progress" instead of blank (bilingual) or a
+    // flash of the English source (target-only, which otherwise falls back to src).
+    const pending = showTgt && !tgt && !!src && this.translating
     this.srcSpan.textContent = showSrc ? src : ''
     this.tgtSpan.textContent = pending ? t('caption_translating') : showTgt ? (mode === 'target' ? tgt || src : tgt) : ''
     this.tgtSpan.classList.toggle('acap-text-pending', pending)
