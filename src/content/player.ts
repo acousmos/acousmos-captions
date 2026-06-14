@@ -20,6 +20,7 @@ export class PlayerController {
   private port: chrome.runtime.Port | null = null
   private state: State = 'idle'
   private cues: Cue[] = []
+  private jobActive = false
   private engine: { provider: string; model: string; fromCache: boolean } | null = null
   private mediaId: string
   private captionsOn = true
@@ -145,20 +146,22 @@ export class PlayerController {
   }
 
   private onPillClick(): void {
-    if (this.state === 'live') {
+    // Open the menu whenever a job is live or in progress (so "Pause" is
+    // reachable mid-translation); otherwise (idle/error) start a run.
+    if (this.state === 'live' || this.state === 'working') {
       this.toggleMenu()
       return
     }
-    if (this.state === 'working') return
     this.start(false)
   }
 
-  private start(force: boolean, forceAsr = false): void {
+  private start(force: boolean, forceAsr = false, resumeCues?: Cue[]): void {
     // Neutral label until the background reports a phase — the source (native
     // captions vs ASR) isn't known yet, so don't claim "fetching audio".
     this.setPill('pill_working', 'working')
     this.closeMenu()
     this.port?.disconnect()
+    this.jobActive = true
     // The translator is known from settings now (job/done only refines fromCache),
     // so the menu footer can show it immediately rather than after the whole job.
     this.engine = {
@@ -166,10 +169,29 @@ export class PlayerController {
       model: llmModelFor(this.settings),
       fromCache: false,
     }
-    void this.beginJob(force, forceAsr)
+    void this.beginJob(force, forceAsr, resumeCues)
   }
 
-  private async beginJob(force: boolean, forceAsr: boolean): Promise<void> {
+  /** Stop the running job but keep the lines translated so far on screen. The
+   *  port disconnect aborts the background job (no further ASR/LLM spend). */
+  private pause(): void {
+    this.closeMenu()
+    this.jobActive = false
+    this.overlay?.setTranslating(false)
+    // Leave 'working' state before disconnecting so onDisconnect doesn't flag an error.
+    this.setPill(this.cues.length > 0 ? 'pill_on' : 'pill_idle', this.cues.length > 0 ? 'live' : 'idle')
+    const port = this.port
+    this.port = null
+    port?.disconnect()
+    toast(t('toast_paused'))
+  }
+
+  /** Continue a paused job: translate only the lines still missing a translation. */
+  private resume(): void {
+    this.start(false, false, this.cues)
+  }
+
+  private async beginJob(force: boolean, forceAsr: boolean, resumeCues?: Cue[]): Promise<void> {
     // Reuse the video's own subtitle track when it has one — accurate, free,
     // already timed — and only fall back to ASR otherwise. forceAsr skips this
     // (menu escape hatch for when the native captions are poor).
@@ -195,6 +217,7 @@ export class PlayerController {
       force,
       pageUrl: location.href,
       nativeUtterances,
+      resumeCues,
     }
     port.postMessage(req)
   }
@@ -235,6 +258,7 @@ export class PlayerController {
         break
       }
       case 'job/done': {
+        this.jobActive = false
         this.cues = ev.result.cues
         this.engine = {
           provider: ev.result.llmProvider,
@@ -257,6 +281,7 @@ export class PlayerController {
         break
       }
       case 'job/error': {
+        this.jobActive = false
         this.overlay?.setTranslating(false)
         this.onError(ev.errorKey, ev.detail)
         break
@@ -348,6 +373,16 @@ export class PlayerController {
     const menu = document.createElement('div')
     menu.className = 'acap-menu'
     const lang = this.settings.llm.targetLang
+
+    // Pause while a job runs; resume if a previous run was paused with lines left
+    // untranslated (translates only the remainder — no re-ASR / redo).
+    if (this.jobActive) {
+      menu.appendChild(this.menuItem(t('menu_pause'), () => this.pause()))
+      menu.appendChild(this.menuSep())
+    } else if (this.cues.length > 0 && this.cues.some((c) => !c.tgt)) {
+      menu.appendChild(this.menuItem(t('menu_resume'), () => this.resume()))
+      menu.appendChild(this.menuSep())
+    }
 
     // Quick caption-mode switch (persisted) — the frequently-changed control
     // belongs here, not buried in Settings.

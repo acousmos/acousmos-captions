@@ -99,16 +99,9 @@ async function runJob(
 
   const cues: Cue[] = []
 
-  // Emit a window's cues (cumulative) and translate them in place.
-  const processWindow = async (utterances: Utterance[], startTime: number): Promise<void> => {
-    const windowCues = buildCues(offsetUtterances(utterances, startTime)).map((c, i) => ({
-      ...c,
-      id: cues.length + i,
-    }))
-    cues.push(...windowCues)
-    job.snapshot = { phase: 'translating', cues }
-    broadcast(job, { kind: 'job/utterances', cues }) // source lines render immediately
-    await translateCues(windowCues, provider, {
+  // Translate a subset of `cues` in place (patched by id), streaming each batch.
+  const translateSubset = (subset: Cue[]): Promise<unknown> =>
+    translateCues(subset, provider, {
       key: llmKey,
       model: llmModel,
       baseUrl: llmBaseUrl,
@@ -123,9 +116,29 @@ async function runJob(
         broadcast(job, { kind: 'job/translated', ids, texts })
       },
     })
+
+  // Emit a window's cues (cumulative) and translate them in place.
+  const processWindow = async (utterances: Utterance[], startTime: number): Promise<void> => {
+    const windowCues = buildCues(offsetUtterances(utterances, startTime)).map((c, i) => ({
+      ...c,
+      id: cues.length + i,
+    }))
+    cues.push(...windowCues)
+    job.snapshot = { phase: 'translating', cues }
+    broadcast(job, { kind: 'job/utterances', cues }) // source lines render immediately
+    await translateSubset(windowCues)
   }
 
-  if (req.nativeUtterances && req.nativeUtterances.length > 0) {
+  if (req.resumeCues && req.resumeCues.length > 0) {
+    // Resuming a paused job: re-show the partial cues and translate only the
+    // lines still missing a translation — no re-ASR, no re-translating done lines.
+    cues.push(...req.resumeCues)
+    job.snapshot = { phase: 'translating', cues }
+    setPhase(job, 'translating')
+    broadcast(job, { kind: 'job/utterances', cues })
+    await translateSubset(cues.filter((c) => !c.tgt))
+    broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: 1 } })
+  } else if (req.nativeUtterances && req.nativeUtterances.length > 0) {
     // The video shipped its own subtitle track — translate it directly, no ASR.
     broadcast(job, { kind: 'job/debug', info: `native captions: ${req.nativeUtterances.length} cues` })
     setPhase(job, 'translating')
@@ -190,6 +203,11 @@ async function runJob(
       broadcast(job, { kind: 'job/progress', progress: { phase: 'translating', ratio: (i + 1) / active.total } })
     }
   }
+
+  // Paused/closed mid-run: don't cache a partial as if it were complete (a later
+  // plain CC would then serve it as done). The content keeps the partial on
+  // screen and resumes via resumeCues.
+  if (signal.aborted) return
 
   if (cues.length === 0) throw new JobError('err_no_speech')
 

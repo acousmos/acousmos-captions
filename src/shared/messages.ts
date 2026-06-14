@@ -24,6 +24,9 @@ export interface JobRequest {
   /** Source cues from the video's own subtitle track; when present, ASR is
    *  skipped and these are translated directly. */
   nativeUtterances?: Utterance[]
+  /** Resuming a paused job: the partial cues so far. The pipeline re-shows them
+   *  and translates only the lines still missing a translation (no re-ASR/redo). */
+  resumeCues?: Cue[]
 }
 
 export type JobEvent =
