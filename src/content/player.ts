@@ -99,8 +99,11 @@ export class PlayerController {
       return
     }
     this.root.style.display = ''
-    this.root.style.top = `${Math.round(r.top + 8)}px`
-    this.root.style.right = `${Math.round(window.innerWidth - r.right + 8)}px`
+    // A bit more inset in fullscreen — an 8px gap that looks fine on the inline
+    // player reads as cramped against the top edge of a full screen.
+    const inset = document.fullscreenElement ? 20 : 8
+    this.root.style.top = `${Math.round(r.top + inset)}px`
+    this.root.style.right = `${Math.round(window.innerWidth - r.right + inset)}px`
     this.root.style.left = 'auto'
   }
 
