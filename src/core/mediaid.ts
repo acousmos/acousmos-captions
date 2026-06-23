@@ -8,40 +8,44 @@
  * the background captured. Animated GIFs (tweet_video) have no audio track.
  */
 
-export type PosterInfo = { id: string; kind: 'video' } | { kind: 'gif' }
+export type PosterInfo = { id: string; kind: "video" } | { kind: "gif" };
 
 export function mediaIdFromPoster(posterUrl: string): PosterInfo | null {
-  if (!posterUrl) return null
-  if (/\/tweet_video_thumb\//.test(posterUrl)) return { kind: 'gif' }
-  const m = posterUrl.match(/\/(?:amplify_video_thumb|ext_tw_video_thumb)\/(\d+)\//)
-  if (m?.[1]) return { id: m[1], kind: 'video' }
-  return null
+	if (!posterUrl) return null;
+	if (/\/tweet_video_thumb\//.test(posterUrl)) return { kind: "gif" };
+	const m = posterUrl.match(
+		/\/(?:amplify_video_thumb|ext_tw_video_thumb)\/(\d+)\//,
+	);
+	if (m?.[1]) return { id: m[1], kind: "video" };
+	return null;
 }
 
 export interface StreamInfo {
-  id: string
-  type: 'm3u8' | 'mp4'
-  url: string
-  /** Pixel area parsed from mp4 path, used to pick the smallest variant. */
-  pixels?: number
+	id: string;
+	type: "m3u8" | "mp4";
+	url: string;
+	/** Pixel area parsed from mp4 path, used to pick the smallest variant. */
+	pixels?: number;
 }
 
 export function streamInfoFromUrl(url: string): StreamInfo | null {
-  const m = url.match(/video\.twimg\.com\/(?:amplify_video|ext_tw_video)\/(\d+)\//)
-  if (!m?.[1]) return null
-  const id = m[1]
-  const path = url.split('?')[0] ?? url
-  if (path.endsWith('.m3u8')) {
-    // Only the master playlist (under /pl/) is useful as an entry point;
-    // rendition playlists are resolved from it.
-    return { id, type: 'm3u8', url }
-  }
-  if (path.endsWith('.mp4')) {
-    const res = path.match(/\/(\d+)x(\d+)\//)
-    const pixels = res ? Number(res[1]) * Number(res[2]) : undefined
-    return { id, type: 'mp4', url, pixels }
-  }
-  return null
+	const m = url.match(
+		/video\.twimg\.com\/(?:amplify_video|ext_tw_video)\/(\d+)\//,
+	);
+	if (!m?.[1]) return null;
+	const id = m[1];
+	const path = url.split("?")[0] ?? url;
+	if (path.endsWith(".m3u8")) {
+		// Only the master playlist (under /pl/) is useful as an entry point;
+		// rendition playlists are resolved from it.
+		return { id, type: "m3u8", url };
+	}
+	if (path.endsWith(".mp4")) {
+		const res = path.match(/\/(\d+)x(\d+)\//);
+		const pixels = res ? Number(res[1]) * Number(res[2]) : undefined;
+		return { id, type: "mp4", url, pixels };
+	}
+	return null;
 }
 
 /**
@@ -52,6 +56,6 @@ export function streamInfoFromUrl(url: string): StreamInfo | null {
  * happened to be fetched last.
  */
 export function isMasterPlaylistUrl(url: string): boolean {
-  const path = url.split('?')[0] ?? url
-  return /\/pl\/[^/]+\.m3u8$/.test(path)
+	const path = url.split("?")[0] ?? url;
+	return /\/pl\/[^/]+\.m3u8$/.test(path);
 }

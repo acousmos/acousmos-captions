@@ -3,202 +3,212 @@
 /* Mounted on <body> (or the fullscreen element) and pinned to the player's
    top-right in JS, so X's player stacking contexts can't bury or eat it. */
 .acap-root {
-  position: fixed;
-  z-index: 2147483600;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
-  transition: opacity 0.25s ease;
+	position: fixed;
+	z-index: 2147483600;
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+		Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+	transition: opacity 0.25s ease;
 }
 
 /* Auto-hidden during playback; revealed on mouse movement over the player. */
 .acap-root.acap-dim {
-  opacity: 0;
-  pointer-events: none;
+	opacity: 0;
+	pointer-events: none;
 }
 
 .acap-pill {
-  all: unset;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(15, 20, 25, 0.75);
-  color: #e7f6ff;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1.4;
-  border: 1px solid rgba(125, 211, 252, 0.45);
-  backdrop-filter: blur(4px);
-  transition: background 0.15s ease, border-color 0.15s ease;
-  user-select: none;
+	all: unset;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: rgba(15, 20, 25, 0.75);
+	color: #e7f6ff;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	line-height: 1.4;
+	border: 1px solid rgba(125, 211, 252, 0.45);
+	backdrop-filter: blur(4px);
+	transition:
+		background 0.15s ease,
+		border-color 0.15s ease;
+	user-select: none;
 }
 
 .acap-pill:hover {
-  background: rgba(15, 20, 25, 0.92);
-  border-color: rgba(125, 211, 252, 0.9);
+	background: rgba(15, 20, 25, 0.92);
+	border-color: rgba(125, 211, 252, 0.9);
 }
 
 .acap-pill[data-state="working"] {
-  border-color: rgba(250, 204, 21, 0.8);
-  color: #fef9c3;
+	border-color: rgba(250, 204, 21, 0.8);
+	color: #fef9c3;
 }
 
 .acap-pill[data-state="live"] {
-  border-color: rgba(74, 222, 128, 0.8);
-  color: #dcfce7;
+	border-color: rgba(74, 222, 128, 0.8);
+	color: #dcfce7;
 }
 
 .acap-pill[data-state="error"] {
-  border-color: rgba(248, 113, 113, 0.9);
-  color: #fee2e2;
+	border-color: rgba(248, 113, 113, 0.9);
+	color: #fee2e2;
 }
 
 /* position:fixed so a short player's overflow:hidden can't clip it; placed
    from the pill's viewport rect in JS. Scrolls if taller than the viewport. */
 .acap-menu {
-  position: fixed;
-  min-width: 200px;
-  max-height: 80vh;
-  overflow-y: auto;
-  background: rgba(15, 20, 25, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+	position: fixed;
+	min-width: 200px;
+	max-height: 80vh;
+	overflow-y: auto;
+	background: rgba(15, 20, 25, 0.96);
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	border-radius: 12px;
+	padding: 6px;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
 .acap-menu-item {
-  all: unset;
-  cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 8px;
-  color: #e7e9ea;
-  font-size: 13.5px;
-  line-height: 1.35;
-  white-space: nowrap;
+	all: unset;
+	cursor: pointer;
+	padding: 8px 12px;
+	border-radius: 8px;
+	color: #e7e9ea;
+	font-size: 13.5px;
+	line-height: 1.35;
+	white-space: nowrap;
 }
 
 .acap-menu-item:hover {
-  background: rgba(125, 211, 252, 0.16);
+	background: rgba(125, 211, 252, 0.16);
 }
 
 .acap-menu-active {
-  color: #7dd3fc;
+	color: #7dd3fc;
 }
 
 .acap-menu-sep {
-  height: 1px;
-  margin: 5px 6px;
-  background: rgba(255, 255, 255, 0.1);
+	height: 1px;
+	margin: 5px 6px;
+	background: rgba(255, 255, 255, 0.1);
 }
 
 /* Non-interactive footer: the translator behind the current captions. */
 .acap-menu-info {
-  padding: 4px 12px 2px;
-  color: #8b98a5;
-  font-size: 11.5px;
-  line-height: 1.3;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+	padding: 4px 12px 2px;
+	color: #8b98a5;
+	font-size: 11.5px;
+	line-height: 1.3;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
 }
 
 /* --- caption overlay --- */
 
 .acap-overlay {
-  position: absolute;
-  left: 50%;
-  bottom: 6%;
-  transform: translateX(-50%);
-  max-width: 96%;
-  z-index: 2147483599;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  pointer-events: none;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --acap-font-base: 16px;
-  --acap-src-scale: 0.7;
-  --acap-tgt-scale: 0.85;
-  --acap-bg-alpha: 0.55;
+	position: absolute;
+	left: 50%;
+	bottom: 6%;
+	transform: translateX(-50%);
+	max-width: 96%;
+	z-index: 2147483599;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	pointer-events: none;
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+		Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+	--acap-font-base: 16px;
+	--acap-src-scale: 0.7;
+	--acap-tgt-scale: 0.85;
+	--acap-bg-alpha: 0.55;
 }
 
 /* Centered row; one caption box per language sits inside it. */
 .acap-line {
-  display: block;
-  width: 100%;
-  text-align: center;
+	display: block;
+	width: 100%;
+	text-align: center;
 }
 
 /* One box per language line. Its width is measured and set in JS so it hugs
    the text: one line when it fits, otherwise wrapped into balanced lines with
    no wide side gaps. */
 .acap-text {
-  display: inline-block;
-  padding: 2px 11px;
-  border-radius: 7px;
-  background: rgba(0, 0, 0, var(--acap-bg-alpha));
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-  line-height: 1.4;
-  white-space: pre-wrap;
-  /* When the box wraps, even the lines instead of leaving a one-word last line
+	display: inline-block;
+	padding: 2px 11px;
+	border-radius: 7px;
+	background: rgba(0, 0, 0, var(--acap-bg-alpha));
+	color: #ffffff;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+	line-height: 1.4;
+	white-space: pre-wrap;
+	/* When the box wraps, even the lines instead of leaving a one-word last line
      (JS sizes the box to the fewest-lines width; balance distributes within it). */
-  text-wrap: balance;
+	text-wrap: balance;
 }
 
 .acap-line-src .acap-text {
-  font-size: calc(var(--acap-font-base) * var(--acap-src-scale));
-  color: #d3e3ee;
-  font-weight: 500;
+	font-size: calc(var(--acap-font-base) * var(--acap-src-scale));
+	color: #d3e3ee;
+	font-weight: 500;
 }
 
 .acap-line-tgt .acap-text {
-  font-size: calc(var(--acap-font-base) * var(--acap-tgt-scale));
-  font-weight: 600;
+	font-size: calc(var(--acap-font-base) * var(--acap-tgt-scale));
+	font-weight: 600;
 }
 
 /* "Translating…" placeholder on the target line while the LLM is still working. */
 .acap-text.acap-text-pending {
-  font-weight: 500;
-  font-style: italic;
-  opacity: 0.7;
+	font-weight: 500;
+	font-style: italic;
+	opacity: 0.7;
 }
 
 /* --- toasts --- */
 
 .acap-toast-host {
-  position: fixed;
-  left: 50%;
-  bottom: 48px;
-  transform: translateX(-50%);
-  z-index: 2147483646;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  pointer-events: none;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+	position: fixed;
+	left: 50%;
+	bottom: 48px;
+	transform: translateX(-50%);
+	z-index: 2147483646;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	pointer-events: none;
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC",
+		"Microsoft YaHei", sans-serif;
 }
 
 .acap-toast {
-  background: rgba(15, 20, 25, 0.95);
-  color: #e7e9ea;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 13.5px;
-  max-width: min(420px, 86vw);
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.25s ease, transform 0.25s ease;
+	background: rgba(15, 20, 25, 0.95);
+	color: #e7e9ea;
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	border-radius: 10px;
+	padding: 10px 16px;
+	font-size: 13.5px;
+	max-width: min(420px, 86vw);
+	opacity: 0;
+	transform: translateY(6px);
+	transition:
+		opacity 0.25s ease,
+		transform 0.25s ease;
 }
 
 .acap-toast-in {
-  opacity: 1;
-  transform: translateY(0);
+	opacity: 1;
+	transform: translateY(0);
 }

@@ -8,83 +8,83 @@
  * terms most likely to appear in the videos this tool targets (AI/dev talks).
  */
 export const BUILTIN_TERMS: readonly string[] = [
-  // Product / feature names most often mis-translated — kept first so they always
-  // make it into the (capped) prompt glossary.
-  'Computer Use',
-  'Core Web Vitals',
-  'Web Vitals',
-  'Chrome DevTools',
-  'DevTools',
-  // Anthropic / Claude
-  'Anthropic',
-  'Claude',
-  'Claude Code',
-  'Claude Opus',
-  'Claude Sonnet',
-  'Claude Haiku',
-  'MCP',
-  'Model Context Protocol',
-  'CLAUDE.md',
-  'Artifacts',
-  // OpenAI
-  'OpenAI',
-  'ChatGPT',
-  'GPT-4',
-  'GPT-4o',
-  'Codex',
-  'Sora',
-  // Google
-  'Gemini',
-  'Google Cloud',
-  'Vertex AI',
-  'DeepMind',
-  'Gemma',
-  // Other labs / models
-  'Llama',
-  'Mistral',
-  'Hugging Face',
-  'Grok',
-  'xAI',
-  'Perplexity',
-  'Midjourney',
-  'Stable Diffusion',
-  'DeepSeek',
-  'Qwen',
-  // Dev / infra
-  'GitHub',
-  'GitHub Copilot',
-  'Copilot',
-  'Cursor',
-  'VS Code',
-  'Visual Studio Code',
-  'TypeScript',
-  'JavaScript',
-  'Python',
-  'Rust',
-  'Kubernetes',
-  'Docker',
-  'Cloudflare',
-  'Vercel',
-  'Supabase',
-  'PostgreSQL',
-  'Redis',
-  'Next.js',
-  'React',
-  'Node.js',
-  // AI concepts
-  'LLM',
-  'RAG',
-  'embedding',
-  'embeddings',
-  'fine-tuning',
-  'prompt engineering',
-  'agentic',
-  'tokenizer',
-  'inference',
-  'API',
-  'SDK',
-  'webhook',
-]
+	// Product / feature names most often mis-translated — kept first so they always
+	// make it into the (capped) prompt glossary.
+	"Computer Use",
+	"Core Web Vitals",
+	"Web Vitals",
+	"Chrome DevTools",
+	"DevTools",
+	// Anthropic / Claude
+	"Anthropic",
+	"Claude",
+	"Claude Code",
+	"Claude Opus",
+	"Claude Sonnet",
+	"Claude Haiku",
+	"MCP",
+	"Model Context Protocol",
+	"CLAUDE.md",
+	"Artifacts",
+	// OpenAI
+	"OpenAI",
+	"ChatGPT",
+	"GPT-4",
+	"GPT-4o",
+	"Codex",
+	"Sora",
+	// Google
+	"Gemini",
+	"Google Cloud",
+	"Vertex AI",
+	"DeepMind",
+	"Gemma",
+	// Other labs / models
+	"Llama",
+	"Mistral",
+	"Hugging Face",
+	"Grok",
+	"xAI",
+	"Perplexity",
+	"Midjourney",
+	"Stable Diffusion",
+	"DeepSeek",
+	"Qwen",
+	// Dev / infra
+	"GitHub",
+	"GitHub Copilot",
+	"Copilot",
+	"Cursor",
+	"VS Code",
+	"Visual Studio Code",
+	"TypeScript",
+	"JavaScript",
+	"Python",
+	"Rust",
+	"Kubernetes",
+	"Docker",
+	"Cloudflare",
+	"Vercel",
+	"Supabase",
+	"PostgreSQL",
+	"Redis",
+	"Next.js",
+	"React",
+	"Node.js",
+	// AI concepts
+	"LLM",
+	"RAG",
+	"embedding",
+	"embeddings",
+	"fine-tuning",
+	"prompt engineering",
+	"agentic",
+	"tokenizer",
+	"inference",
+	"API",
+	"SDK",
+	"webhook",
+];
 
 /**
  * Target-specific forced translations applied by default ("always render X as
@@ -93,52 +93,71 @@ export const BUILTIN_TERMS: readonly string[] = [
  * vs 智能體 is script-specific. Anything else gets no built-in mapping; users can
  * add their own via the editable glossary (`term=译法`).
  */
-const FORCED_TRANSLATIONS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  'zh-cn': { agent: '智能体', agents: '智能体', 'sub-agent': '子智能体', subagent: '子智能体', skill: '技能' },
-  'zh-tw': { agent: '智能體', agents: '智能體', 'sub-agent': '子智能體', subagent: '子智能體', skill: '技能' },
-}
+const FORCED_TRANSLATIONS: Readonly<
+	Record<string, Readonly<Record<string, string>>>
+> = {
+	"zh-cn": {
+		agent: "智能体",
+		agents: "智能体",
+		"sub-agent": "子智能体",
+		subagent: "子智能体",
+		skill: "技能",
+	},
+	"zh-tw": {
+		agent: "智能體",
+		agents: "智能體",
+		"sub-agent": "子智能體",
+		subagent: "子智能體",
+		skill: "技能",
+	},
+};
 
 /** One glossary entry: a source term, optionally with a forced translation. */
 interface GlossaryEntry {
-  term: string
-  translation?: string
+	term: string;
+	translation?: string;
 }
 
 /** Parse `term` (keep as written) and `term=译法` (force translation) entries. */
 function parseEntries(raw: string): GlossaryEntry[] {
-  const out: GlossaryEntry[] = []
-  for (const piece of raw.split(/[\n,]/)) {
-    const s = piece.trim()
-    if (!s) continue
-    const eq = s.indexOf('=')
-    if (eq > 0) {
-      const term = s.slice(0, eq).trim()
-      const translation = s.slice(eq + 1).trim()
-      if (term) out.push(translation ? { term, translation } : { term })
-    } else {
-      out.push({ term: s })
-    }
-  }
-  return out
+	const out: GlossaryEntry[] = [];
+	for (const piece of raw.split(/[\n,]/)) {
+		const s = piece.trim();
+		if (!s) continue;
+		const eq = s.indexOf("=");
+		if (eq > 0) {
+			const term = s.slice(0, eq).trim();
+			const translation = s.slice(eq + 1).trim();
+			if (term) out.push(translation ? { term, translation } : { term });
+		} else {
+			out.push({ term: s });
+		}
+	}
+	return out;
 }
 
 function builtinMappingsFor(targetLang: string): GlossaryEntry[] {
-  const pairs = FORCED_TRANSLATIONS[targetLang.toLowerCase()]
-  return pairs ? Object.entries(pairs).map(([term, translation]) => ({ term, translation })) : []
+	const pairs = FORCED_TRANSLATIONS[targetLang.toLowerCase()];
+	return pairs
+		? Object.entries(pairs).map(([term, translation]) => ({
+				term,
+				translation,
+			}))
+		: [];
 }
 
 /** De-duplicate by term (case-insensitive); earlier entries win. */
 function dedupe(entries: GlossaryEntry[]): GlossaryEntry[] {
-  const seen = new Set<string>()
-  const out: GlossaryEntry[] = []
-  for (const e of entries) {
-    const key = e.term.toLowerCase()
-    if (!seen.has(key)) {
-      seen.add(key)
-      out.push(e)
-    }
-  }
-  return out
+	const seen = new Set<string>();
+	const out: GlossaryEntry[] = [];
+	for (const e of entries) {
+		const key = e.term.toLowerCase();
+		if (!seen.has(key)) {
+			seen.add(key);
+			out.push(e);
+		}
+	}
+	return out;
 }
 
 /**
@@ -146,7 +165,10 @@ function dedupe(entries: GlossaryEntry[]): GlossaryEntry[] {
  * needs the term to recognize. User terms first, then built-ins.
  */
 export function glossaryTerms(customRaw: string): string[] {
-  return dedupe([...parseEntries(customRaw), ...BUILTIN_TERMS.map((term) => ({ term }))]).map((e) => e.term)
+	return dedupe([
+		...parseEntries(customRaw),
+		...BUILTIN_TERMS.map((term) => ({ term })),
+	]).map((e) => e.term);
 }
 
 /**
@@ -154,7 +176,7 @@ export function glossaryTerms(customRaw: string): string[] {
  * keep user terms first.
  */
 export function glossaryForDeepgram(customRaw: string, max = 80): string[] {
-  return glossaryTerms(customRaw).slice(0, max)
+	return glossaryTerms(customRaw).slice(0, max);
 }
 
 /**
@@ -164,22 +186,27 @@ export function glossaryForDeepgram(customRaw: string, max = 80): string[] {
  * capped INDEPENDENTLY so a long mapping list can't push the keep-English terms
  * out of the prompt (and vice versa). Returns '' when empty.
  */
-export function glossaryForPrompt(customRaw: string, targetLang: string, maxKeep = 80, maxMap = 40): string {
-  const entries = dedupe([
-    ...parseEntries(customRaw), // user — highest priority, can override built-ins
-    ...builtinMappingsFor(targetLang), // target-specific forced translations
-    ...BUILTIN_TERMS.map((term) => ({ term })), // keep-in-English names
-  ])
-  const mappings = entries
-    .filter((e) => e.translation)
-    .slice(0, maxMap)
-    .map((e) => `${e.term}→${e.translation!}`)
-  const keep = entries
-    .filter((e) => !e.translation)
-    .slice(0, maxKeep)
-    .map((e) => e.term)
-  const parts: string[] = []
-  if (mappings.length) parts.push(`always render: ${mappings.join(', ')}`)
-  if (keep.length) parts.push(`keep in English: ${keep.join(', ')}`)
-  return parts.join(' | ')
+export function glossaryForPrompt(
+	customRaw: string,
+	targetLang: string,
+	maxKeep = 80,
+	maxMap = 40,
+): string {
+	const entries = dedupe([
+		...parseEntries(customRaw), // user — highest priority, can override built-ins
+		...builtinMappingsFor(targetLang), // target-specific forced translations
+		...BUILTIN_TERMS.map((term) => ({ term })), // keep-in-English names
+	]);
+	const mappings = entries
+		.filter((e) => e.translation)
+		.slice(0, maxMap)
+		.map((e) => `${e.term}→${e.translation!}`);
+	const keep = entries
+		.filter((e) => !e.translation)
+		.slice(0, maxKeep)
+		.map((e) => e.term);
+	const parts: string[] = [];
+	if (mappings.length) parts.push(`always render: ${mappings.join(", ")}`);
+	if (keep.length) parts.push(`keep in English: ${keep.join(", ")}`);
+	return parts.join(" | ");
 }

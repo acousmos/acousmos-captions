@@ -1,89 +1,121 @@
 {
-  "extName": { "message": "Acousmos Captions — bilingual video subtitles" },
-  "extDesc": { "message": "AI bilingual captions for X (Twitter) videos. The original line always stays visible. Bring your own ASR/LLM keys — open source, no subscription." },
+	"extName": { "message": "Acousmos Captions — bilingual video subtitles" },
+	"extDesc": {
+		"message": "AI bilingual captions for X (Twitter) videos. The original line always stays visible. Bring your own ASR/LLM keys — open source, no subscription."
+	},
 
-  "pill_idle": { "message": "CC" },
-  "pill_working": { "message": "Working…" },
-  "pill_capturing": { "message": "Fetching audio…" },
-  "pill_transcribing": { "message": "Transcribing…" },
-  "pill_translating": { "message": "Translating…" },
-  "pill_on": { "message": "CC ✓" },
-  "pill_error": { "message": "CC !" },
+	"pill_idle": { "message": "CC" },
+	"pill_working": { "message": "Working…" },
+	"pill_capturing": { "message": "Fetching audio…" },
+	"pill_transcribing": { "message": "Transcribing…" },
+	"pill_translating": { "message": "Translating…" },
+	"pill_on": { "message": "CC ✓" },
+	"pill_error": { "message": "CC !" },
 
-  "menu_show": { "message": "Show captions" },
-  "menu_hide": { "message": "Hide captions" },
-  "menu_export_bilingual": { "message": "Export SRT (bilingual)" },
-  "menu_export_source": { "message": "Export SRT (original)" },
-  "menu_export_target": { "message": "Export SRT (translation)" },
-  "menu_retranslate": { "message": "Re-run (ignore cache)" },
-  "menu_force_asr": { "message": "Re-transcribe (ignore captions)" },
-  "menu_settings": { "message": "Settings…" },
-  "menu_pause": { "message": "Pause translating" },
-  "menu_resume": { "message": "Resume translating" },
-  "menu_engine_cached": { "message": "cached" },
-  "caption_translating": { "message": "Translating…" },
-  "toast_paused": { "message": "Paused — translated lines are kept. Resume from the CC menu." },
+	"menu_show": { "message": "Show captions" },
+	"menu_hide": { "message": "Hide captions" },
+	"menu_export_bilingual": { "message": "Export SRT (bilingual)" },
+	"menu_export_source": { "message": "Export SRT (original)" },
+	"menu_export_target": { "message": "Export SRT (translation)" },
+	"menu_retranslate": { "message": "Re-run (ignore cache)" },
+	"menu_force_asr": { "message": "Re-transcribe (ignore captions)" },
+	"menu_settings": { "message": "Settings…" },
+	"menu_pause": { "message": "Pause translating" },
+	"menu_resume": { "message": "Resume translating" },
+	"menu_engine_cached": { "message": "cached" },
+	"caption_translating": { "message": "Translating…" },
+	"toast_paused": {
+		"message": "Paused — translated lines are kept. Resume from the CC menu."
+	},
 
-  "toast_gif": { "message": "This is an animated GIF — no audio to transcribe." },
-  "toast_need_play": { "message": "Start playing the video once, then click CC again." },
-  "toast_no_media": { "message": "Could not locate this video's stream. Play the video and retry." },
-  "toast_no_asr_key": { "message": "No ASR key configured. Open Settings to add one." },
-  "toast_no_llm_key": { "message": "No translation key configured. Open Settings to add one." },
-  "toast_cached": { "message": "Loaded from cache." },
-  "toast_ready": { "message": "Captions ready — they appear on the video as it plays. Press play." },
-  "toast_translation_partial": { "message": "Some lines could not be translated; original is shown." },
+	"toast_gif": {
+		"message": "This is an animated GIF — no audio to transcribe."
+	},
+	"toast_need_play": {
+		"message": "Start playing the video once, then click CC again."
+	},
+	"toast_no_media": {
+		"message": "Could not locate this video's stream. Play the video and retry."
+	},
+	"toast_no_asr_key": {
+		"message": "No ASR key configured. Open Settings to add one."
+	},
+	"toast_no_llm_key": {
+		"message": "No translation key configured. Open Settings to add one."
+	},
+	"toast_cached": { "message": "Loaded from cache." },
+	"toast_ready": {
+		"message": "Captions ready — they appear on the video as it plays. Press play."
+	},
+	"toast_translation_partial": {
+		"message": "Some lines could not be translated; original is shown."
+	},
 
-  "err_asr_auth": { "message": "ASR provider rejected the API key. Check it in Settings." },
-  "err_asr_failed": { "message": "Transcription failed. Try again in a moment." },
-  "err_llm_auth": { "message": "Translation provider rejected the API key. Check it in Settings." },
-  "err_llm_failed": { "message": "Translation failed. Try again in a moment." },
-  "err_audio_fetch": { "message": "Could not download the video's audio stream." },
-  "err_no_speech": { "message": "No speech detected in this video." },
-  "err_unknown": { "message": "Something went wrong. Try again." },
+	"err_asr_auth": {
+		"message": "ASR provider rejected the API key. Check it in Settings."
+	},
+	"err_asr_failed": {
+		"message": "Transcription failed. Try again in a moment."
+	},
+	"err_llm_auth": {
+		"message": "Translation provider rejected the API key. Check it in Settings."
+	},
+	"err_llm_failed": { "message": "Translation failed. Try again in a moment." },
+	"err_audio_fetch": {
+		"message": "Could not download the video's audio stream."
+	},
+	"err_no_speech": { "message": "No speech detected in this video." },
+	"err_unknown": { "message": "Something went wrong. Try again." },
 
-  "status_queued": { "message": "Queued" },
-  "status_fetching_audio": { "message": "Fetching audio" },
-  "status_transcribing": { "message": "Transcribing" },
-  "status_translating": { "message": "Translating" },
-  "status_done": { "message": "Done" },
-  "status_error": { "message": "Error" },
+	"status_queued": { "message": "Queued" },
+	"status_fetching_audio": { "message": "Fetching audio" },
+	"status_transcribing": { "message": "Transcribing" },
+	"status_translating": { "message": "Translating" },
+	"status_done": { "message": "Done" },
+	"status_error": { "message": "Error" },
 
-  "popup_title": { "message": "Acousmos Captions" },
-  "popup_keys_missing": { "message": "API keys missing — captions will not work yet." },
-  "popup_open_options": { "message": "Open settings" },
-  "popup_ready": { "message": "Ready. Click the CC button on any X video." },
-  "popup_not_x": { "message": "Open x.com to use captions." },
+	"popup_title": { "message": "Acousmos Captions" },
+	"popup_keys_missing": {
+		"message": "API keys missing — captions will not work yet."
+	},
+	"popup_open_options": { "message": "Open settings" },
+	"popup_ready": { "message": "Ready. Click the CC button on any X video." },
+	"popup_not_x": { "message": "Open x.com to use captions." },
 
-  "opt_title": { "message": "Acousmos Captions — Settings" },
-  "opt_asr_section": { "message": "Speech recognition (ASR)" },
-  "opt_llm_section": { "message": "Translation (LLM)" },
-  "opt_display_section": { "message": "Caption display" },
-  "opt_data_section": { "message": "Data" },
-  "opt_provider": { "message": "Provider" },
-  "opt_api_key": { "message": "API key" },
-  "opt_model": { "message": "Model" },
-  "opt_base_url": { "message": "Base URL (OpenAI-compatible)" },
-  "opt_grant_origin": { "message": "Grant access to this origin" },
-  "opt_target_lang": { "message": "Translate to" },
-  "opt_source_lang": { "message": "Audio language" },
-  "opt_lang_auto": { "message": "Auto detect" },
-  "opt_custom_terms": { "message": "Terms & glossary" },
-  "opt_custom_terms_ph": { "message": "Names/jargon to keep, and forced translations as word=译法 — e.g. Claude Code, agent=智能体 (comma or newline separated)" },
-  "opt_src_size": { "message": "Original size" },
-  "opt_tgt_size": { "message": "Translation size" },
-  "opt_bg_opacity": { "message": "Background opacity" },
-  "opt_mode": { "message": "Captions" },
-  "opt_mode_bilingual": { "message": "Bilingual (original + translation)" },
-  "opt_mode_source": { "message": "Original only" },
-  "opt_mode_target": { "message": "Translation only" },
-  "opt_order": { "message": "Line order" },
-  "opt_order_src_first": { "message": "Original on top" },
-  "opt_order_tgt_first": { "message": "Translation on top" },
-  "opt_clear_cache": { "message": "Clear caption cache" },
-  "opt_cache_cleared": { "message": "Cache cleared." },
-  "opt_saved": { "message": "Saved." },
-  "opt_test_key": { "message": "Test" },
-  "opt_key_ok": { "message": "Key OK" },
-  "opt_key_fail": { "message": "Key check failed" },
-  "opt_keys_note": { "message": "Keys are stored only in this browser (chrome.storage.local) and sent only to the provider you choose. They never touch Acousmos servers." }
+	"opt_title": { "message": "Acousmos Captions — Settings" },
+	"opt_asr_section": { "message": "Speech recognition (ASR)" },
+	"opt_llm_section": { "message": "Translation (LLM)" },
+	"opt_display_section": { "message": "Caption display" },
+	"opt_data_section": { "message": "Data" },
+	"opt_provider": { "message": "Provider" },
+	"opt_api_key": { "message": "API key" },
+	"opt_model": { "message": "Model" },
+	"opt_base_url": { "message": "Base URL (OpenAI-compatible)" },
+	"opt_grant_origin": { "message": "Grant access to this origin" },
+	"opt_target_lang": { "message": "Translate to" },
+	"opt_source_lang": { "message": "Audio language" },
+	"opt_lang_auto": { "message": "Auto detect" },
+	"opt_custom_terms": { "message": "Terms & glossary" },
+	"opt_custom_terms_ph": {
+		"message": "Names/jargon to keep, and forced translations as word=译法 — e.g. Claude Code, agent=智能体 (comma or newline separated)"
+	},
+	"opt_src_size": { "message": "Original size" },
+	"opt_tgt_size": { "message": "Translation size" },
+	"opt_bg_opacity": { "message": "Background opacity" },
+	"opt_mode": { "message": "Captions" },
+	"opt_mode_bilingual": { "message": "Bilingual (original + translation)" },
+	"opt_mode_source": { "message": "Original only" },
+	"opt_mode_target": { "message": "Translation only" },
+	"opt_order": { "message": "Line order" },
+	"opt_order_src_first": { "message": "Original on top" },
+	"opt_order_tgt_first": { "message": "Translation on top" },
+	"opt_clear_cache": { "message": "Clear caption cache" },
+	"opt_cache_cleared": { "message": "Cache cleared." },
+	"opt_saved": { "message": "Saved." },
+	"opt_test_key": { "message": "Test" },
+	"opt_key_ok": { "message": "Key OK" },
+	"opt_key_fail": { "message": "Key check failed" },
+	"opt_keys_note": {
+		"message": "Keys are stored only in this browser (chrome.storage.local) and sent only to the provider you choose. They never touch Acousmos servers."
+	}
 }
