@@ -1,10 +1,8 @@
 # Acousmos Captions
 
-**Bilingual AI captions for X (Twitter) videos — the original line always stays visible.**
+**Bilingual AI captions for X (Twitter) videos. The original line always stays visible.** ([中文说明](README.zh-CN.md))
 
-给 X(Twitter)视频一键加中英双语字幕:原文是锚点,译文是辅助。自带 Key(BYOK)、开源、无订阅。
-
-[Acousmos](https://acousmos.com) 出品 · MIT License
+Bring your own ASR and LLM keys. Open source, no subscription. Made by [Acousmos](https://acousmos.com).
 
 ---
 
@@ -79,12 +77,6 @@ src/
   options/   settings page (keys, languages, display)
   popup/     status + quick toggle
 ```
-
-## Roadmap
-
-- [ ] Hosted fallback quota via an Acousmos account, for users who don't want to manage keys (the extension stays fully functional BYOK-only)
-- [ ] Firefox port
-- [ ] More platforms beyond X
 
 ## Privacy
 
