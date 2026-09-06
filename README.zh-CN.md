@@ -19,10 +19,11 @@ Acousmos Captions 换了一个立场:
 ## 它怎么工作
 
 ```
-X 视频页面 → 在你自己的浏览器会话里截取视频流(不经过任何服务器下载)
+X 视频页面 → 视频自带字幕的,直接翻译
+          → 没有的,在你自己的浏览器会话里截取视频流(不经过任何服务器下载)
           → 取出纯音频的 HLS 轨道并拼接
-          → 带时间戳的语音识别(Deepgram nova-3 或 Soniox async)
-          → 生成字幕条(只合并不切分,每个边界都是识别给出的时间戳)
+          → 带时间戳的语音识别(Deepgram nova-3 或 Soniox stt-async-v5)
+          → 生成字幕条:按句合并,只在太长时才切;每个边界都是识别给出的时间戳
           → 翻译模型按字幕条 id 翻译文字(时间戳不离开你的机器)
           → 在原生播放器上叠加双语字幕,可导出 SRT
 ```
@@ -38,9 +39,9 @@ X 视频页面 → 在你自己的浏览器会话里截取视频流(不经过任
 
 Chrome 应用商店上架之前,按下面装:
 
-1. 下载最新的 release 压缩包(或者从源码 `pnpm build`),需要的是 `dist/` 目录。
+1. 下载最新的 release 压缩包并解压,含 `manifest.json` 的那个目录就是扩展。从源码构建(`pnpm build`)得到的是同样的文件,在 `dist/` 里。
 2. 打开 `chrome://extensions`,打开右上角的「开发者模式」。
-3. 点「加载已解压的扩展程序」,选 `dist/` 目录。
+3. 点「加载已解压的扩展程序」,选那个目录。
 4. 打开扩展的「设置」,填一个语音识别 Key 和一个翻译 Key。
 5. 打开任意一条 X 视频,点播放器上的 **CC**。
 
@@ -49,8 +50,8 @@ Chrome 应用商店上架之前,按下面装:
 | 层 | 服务商 | 申请地址 |
 |---|---|---|
 | 语音识别 | Deepgram(默认,`nova-3`) | console.deepgram.com,有不少免费额度 |
-| 语音识别 | Soniox(`stt-async`) | console.soniox.com |
-| 翻译 | 任何 OpenAI 兼容接口(OpenAI、DeepSeek、Groq、本地模型等) | 可配置接口地址和模型名 |
+| 语音识别 | Soniox(`stt-async-v5`) | console.soniox.com |
+| 翻译 | 任何 OpenAI 兼容接口(默认服务商,模型 `gpt-4.1-mini`;也可以是 DeepSeek、Groq、本地模型等) | 可配置接口地址和模型名;填非默认地址时设置页会请求该主机的访问权限 |
 | 翻译 | Google Gemini(默认 `gemini-3.5-flash`) | aistudio.google.com/apikey |
 | 翻译 | Anthropic(默认 `claude-haiku-4-5`) | console.anthropic.com |
 

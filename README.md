@@ -19,10 +19,11 @@ Acousmos Captions takes a different position:
 ## How it works
 
 ```
-X video page → stream captured in YOUR browser session (no server-side downloading)
+X video page → if the video ships its own captions, they are translated directly
+            → otherwise the stream is captured in YOUR browser session (no server-side downloading)
             → audio-only HLS rendition fetched and assembled
-            → ASR with timestamps (Deepgram nova-3 / Soniox async)
-            → display cues built (merge-only; every boundary is an ASR timestamp)
+            → ASR with timestamps (Deepgram nova-3 / Soniox stt-async-v5)
+            → display cues built: sentences merged, split only when too long; every boundary is an ASR timestamp
             → LLM translates text anchored by cue id (timestamps never leave your machine)
             → bilingual overlay on the native player + SRT export
 ```
@@ -30,7 +31,7 @@ X video page → stream captured in YOUR browser session (no server-side downloa
 Key design constraints:
 
 - **Timeline integrity.** The LLM receives `(id, text)` pairs only. It cannot reorder, merge, or re-time anything — translations are patched back by id onto immutable ASR anchors.
-- **English first, translation streams in.** Original captions appear the moment transcription finishes; translated lines fill in batch by batch.
+- **Original first, translation streams in.** Original captions appear the moment transcription finishes; translated lines fill in batch by batch.
 - **Your session, your videos.** Audio is fetched inside your logged-in browser session, the same way the player itself fetches it. Nothing is proxied through any server.
 - **Cached.** Results are cached locally (LRU) — re-watching is free.
 
@@ -38,9 +39,9 @@ Key design constraints:
 
 Until the Chrome Web Store listing is live:
 
-1. Download the latest release zip (or `pnpm build` from source) — you need the `dist/` folder.
+1. Download the latest release zip and unzip it; the folder that contains `manifest.json` is the extension. Building from source (`pnpm build`) puts the same files in `dist/`.
 2. Open `chrome://extensions`, enable **Developer mode**.
-3. **Load unpacked** → select the `dist/` folder.
+3. **Load unpacked** → select that folder.
 4. Open the extension's **Settings**, add an ASR key and an LLM key.
 5. Open any X video, press the **CC** pill on the player.
 
@@ -49,8 +50,8 @@ Until the Chrome Web Store listing is live:
 | Layer | Provider | Where to get a key |
 |---|---|---|
 | ASR | Deepgram (default, `nova-3`) | console.deepgram.com — generous free credit |
-| ASR | Soniox (`stt-async`) | console.soniox.com |
-| LLM | Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Groq, local…) | configurable base URL + model |
+| ASR | Soniox (`stt-async-v5`) | console.soniox.com |
+| LLM | Any OpenAI-compatible endpoint (default provider, `gpt-4.1-mini`; also DeepSeek, Groq, local…) | configurable base URL + model; a non-default base URL asks for host permission in the settings page |
 | LLM | Google Gemini (`gemini-3.5-flash` default) | aistudio.google.com/apikey |
 | LLM | Anthropic (`claude-haiku-4-5` default) | console.anthropic.com |
 
